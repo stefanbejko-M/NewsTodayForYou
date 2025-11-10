@@ -1,0 +1,1 @@
+alter table public.post enable row level security;do $$ begin create policy "Public can read published" on public.post for select using (is_published = true); exception when duplicate_object then null; end $$;
