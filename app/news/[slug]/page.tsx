@@ -53,17 +53,38 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
 
   if (!post) return <div>Article not found</div>
 
+  // Convert markdown headings to HTML
+  const formatContent = (content: string) => {
+    return content
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/\n\n/g, '</p><p>')
+  }
+
+  const formattedBody = `<p>${formatContent(post.body)}</p>`
+
   return (
     <article>
       <h1>{post.title}</h1>
-      <p>
-        <em>{new Date(post.created_at).toLocaleString()}</em> —{' '}
-        <strong>{post.source_name || 'NewsTodayForYou'}</strong>
+      <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
+        <em>{new Date(post.created_at).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })}</em>
       </p>
-      <div dangerouslySetInnerHTML={{ __html: post.body }} />
+      <div dangerouslySetInnerHTML={{ __html: formattedBody }} />
       <div style={{ marginTop: 24 }}>
         <div id="ad-in-1" />
       </div>
+      {post.source_name && (
+        <div style={{
+          fontSize: '11px',
+          opacity: 0.45,
+          marginTop: '28px'
+        }}>
+          Source: {post.source_name}
+        </div>
+      )}
     </article>
   )
 }

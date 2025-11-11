@@ -1,10 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Experimental features might be needed for proper dynamic rendering
-  experimental: {
-    serverActions: true
-  }
+  // Server Actions are now stable in Next.js 14
 }
 
 module.exports = nextConfig
+
 
