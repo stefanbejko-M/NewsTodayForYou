@@ -45,6 +45,86 @@ function generateSlug(title: string): string {
     .substring(0, 100)
 }
 
+// Helper: Detect category from title and source
+function detectCategory(title: string, source: string): string {
+  const titleLower = title.toLowerCase()
+  const sourceLower = source.toLowerCase()
+  const combined = `${titleLower} ${sourceLower}`
+
+  // Sports detection
+  const sportsKeywords = [
+    'sport', 'nba', 'nfl', 'mlb', 'soccer', 'football',
+    'premier league', 'uefa', 'fifa', 'olympic', 'basketball',
+    'hockey', 'nhl', 'tennis', 'cricket', 'rugby', 'boxing',
+    'ufc', 'mma', 'athletics', 'championship', 'world cup'
+  ]
+  if (sportsKeywords.some(keyword => combined.includes(keyword))) {
+    return 'sports'
+  }
+
+  // Games detection
+  const gamesKeywords = [
+    'game', 'gaming', 'xbox', 'playstation', 'ps5', 'nintendo',
+    'steam', 'esports', 'tournament', 'gamer', 'console',
+    'pc gaming', 'fortnite', 'minecraft', 'call of duty',
+    'league of legends', 'dota', 'valorant', 'twitch'
+  ]
+  if (gamesKeywords.some(keyword => combined.includes(keyword))) {
+    return 'games'
+  }
+
+  // Celebrity detection
+  const celebrityKeywords = [
+    'celebrity', 'actor', 'actress', 'singer', 'musician',
+    'hollywood', 'kardashian', 'beyonce', 'taylor swift',
+    'kanye', 'entertainment', 'grammy', 'oscar', 'emmy'
+  ]
+  if (celebrityKeywords.some(keyword => combined.includes(keyword))) {
+    return 'celebrity'
+  }
+
+  // Politics detection
+  const politicsKeywords = [
+    'politic', 'president', 'senator', 'congress', 'parliament',
+    'minister', 'government', 'election', 'vote', 'democrat',
+    'republican', 'biden', 'trump', 'white house', 'capitol'
+  ]
+  if (politicsKeywords.some(keyword => combined.includes(keyword))) {
+    return 'politics'
+  }
+
+  // AI News detection
+  const aiKeywords = [
+    'artificial intelligence', 'machine learning', 'ai', 'chatgpt',
+    'openai', 'deepmind', 'neural network', 'deep learning',
+    'automation', 'robot', 'autonomous', 'algorithm'
+  ]
+  if (aiKeywords.some(keyword => combined.includes(keyword))) {
+    return 'ai-news'
+  }
+
+  // Default fallback
+  return 'ai-news'
+}
+
+// Helper: Get or create category ID
+async function getCategoryId(categorySlug: string): Promise<number | null> {
+  const supabase = getSupabaseClient()
+  
+  const { data, error } = await supabase
+    .from('category')
+    .select('id')
+    .eq('slug', categorySlug)
+    .single()
+
+  if (error || !data) {
+    console.error(`Category "${categorySlug}" not found in database`)
+    return null
+  }
+
+  return data.id
+}
+
 // Helper: Check if article already exists
 async function articleExists(slug: string): Promise<boolean> {
   const supabase = getSupabaseClient()
@@ -65,12 +145,12 @@ async function fetchFromEventRegistry(): Promise<EventRegistryArticle[]> {
     throw new Error('EVENT_REGISTRY_API_KEY is not set')
   }
 
-  // Get articles from last 1 hour
+  // Get articles from last 3 hours (matching cron schedule)
   const now = new Date()
-  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+  const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000)
   
-  const dateStart = oneHourAgo.toISOString().split('T')[0]
-  const timeStart = oneHourAgo.toISOString().split('T')[1].substring(0, 5)
+  const dateStart = threeHoursAgo.toISOString().split('T')[0]
+  const timeStart = threeHoursAgo.toISOString().split('T')[1].substring(0, 5)
 
   // Event Registry API endpoint
   const url = 'https://eventregistry.org/api/v1/article/getArticles'
@@ -79,7 +159,7 @@ async function fetchFromEventRegistry(): Promise<EventRegistryArticle[]> {
     action: 'getArticles',
     keyword: '',
     articlesPage: 1,
-    articlesCount: 50,
+    articlesCount: 60, // Increased from 50 to 60 for 3-hour window
     articlesSortBy: 'date',
     articlesSortByAsc: false,
     articlesArticleBodyLen: -1,
@@ -91,7 +171,9 @@ async function fetchFromEventRegistry(): Promise<EventRegistryArticle[]> {
     categoryUri: [
       'dmoz/Society/People/Celebrity',
       'dmoz/Society/Politics',
-      'dmoz/Computers/Artificial_Intelligence'
+      'dmoz/Computers/Artificial_Intelligence',
+      'dmoz/Sports',
+      'dmoz/Games'
     ],
     dateStart: dateStart,
     timeStart: timeStart,
@@ -205,7 +287,10 @@ Return ONLY valid JSON with this exact structure:
 }
 
 // Helper: Insert article into Supabase
-async function insertArticle(article: AIRewriteResult): Promise<boolean> {
+async function insertArticle(
+  article: AIRewriteResult, 
+  categoryId: number | null
+): Promise<boolean> {
   try {
     // Check if slug already exists
     const exists = await articleExists(article.new_slug)
@@ -222,6 +307,7 @@ async function insertArticle(article: AIRewriteResult): Promise<boolean> {
         body: article.new_content,
         source_name: article.source_name,
         source_url: '',
+        category_id: categoryId,
         created_at: new Date().toISOString(),
       },
     ])
@@ -241,15 +327,23 @@ async function insertArticle(article: AIRewriteResult): Promise<boolean> {
 // Main handler
 export async function GET(request: Request) {
   try {
-    // Verify cron secret for security
+    // Parse query parameters for testing
+    const url = new URL(request.url)
+    const isDryRun = url.searchParams.get('dry') === '1'
+    const limitParam = url.searchParams.get('limit')
+    const processLimit = limitParam ? parseInt(limitParam, 10) : 20
+
+    // Verify cron secret for security (skip for dry runs in development)
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
     
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (cronSecret && !isDryRun && authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     console.log('Starting news fetch and rewrite process...')
+    console.log(`Mode: ${isDryRun ? 'DRY RUN (no DB writes)' : 'LIVE'}`)
+    console.log(`Process limit: ${processLimit}`)
 
     // Step 1: Fetch articles from Event Registry
     const articles = await fetchFromEventRegistry()
@@ -266,13 +360,27 @@ export async function GET(request: Request) {
     // Step 2: Process each article
     let processedCount = 0
     let insertedCount = 0
+    const categoryStats: Record<string, number> = {}
+    const dryRunResults: any[] = []
 
-    for (const article of articles.slice(0, 20)) {
+    for (const article of articles.slice(0, processLimit)) {
       try {
         const sourceName = article.source?.title || 'Unknown Source'
         
+        // Detect category
+        const categorySlug = detectCategory(article.title, sourceName)
+        categoryStats[categorySlug] = (categoryStats[categorySlug] || 0) + 1
+
+        console.log(`Processing: ${article.title} [Category: ${categorySlug}]`)
+
+        // Get category ID
+        const categoryId = await getCategoryId(categorySlug)
+        if (!categoryId) {
+          console.log(`Skipping article - category "${categorySlug}" not found in database`)
+          continue
+        }
+
         // Rewrite article with AI
-        console.log(`Rewriting: ${article.title}`)
         const rewritten = await rewriteArticleWithAI(
           article.title,
           article.body,
@@ -284,11 +392,24 @@ export async function GET(request: Request) {
           continue
         }
 
-        // Insert into database
-        const inserted = await insertArticle(rewritten)
-        if (inserted) {
-          insertedCount++
-          console.log(`Inserted: ${rewritten.new_title}`)
+        if (isDryRun) {
+          // Dry run mode: just log what would be inserted
+          dryRunResults.push({
+            title: rewritten.new_title,
+            slug: rewritten.new_slug,
+            category: categorySlug,
+            category_id: categoryId,
+            source_name: sourceName,
+            content_preview: rewritten.new_content.substring(0, 100) + '...'
+          })
+          console.log(`[DRY RUN] Would insert: ${rewritten.new_title} (${categorySlug})`)
+        } else {
+          // Live mode: insert into database
+          const inserted = await insertArticle(rewritten, categoryId)
+          if (inserted) {
+            insertedCount++
+            console.log(`Inserted: ${rewritten.new_title} (${categorySlug})`)
+          }
         }
 
         processedCount++
@@ -302,10 +423,13 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'News fetch and rewrite completed',
+      message: isDryRun ? 'Dry run completed - no data written' : 'News fetch and rewrite completed',
+      dry_run: isDryRun,
       processed: processedCount,
-      inserted: insertedCount,
+      inserted: isDryRun ? 0 : insertedCount,
       total_fetched: articles.length,
+      category_stats: categoryStats,
+      ...(isDryRun && { preview: dryRunResults.slice(0, 5) })
     })
   } catch (error) {
     console.error('Error in fetch-news route:', error)
