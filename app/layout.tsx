@@ -33,10 +33,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <aside className="sidebar">
               <div className="side-title">Categories</div>
               <ul style={{listStyle:'none',padding:0,margin:0,lineHeight:'1.9'}}>
-                <li><a href="/?q=Celebrity">Celebrity</a></li>
-                <li><a href="/?q=Politics">Politics</a></li>
-                <li><a href="/?q=AI">AI News</a></li>
-                <li><a href="/?q=Daily">Daily Highlights</a></li>
+                <li><a href="/?q=celebrity">Celebrity</a></li>
+                <li><a href="/?q=politics">Politics</a></li>
+                <li><a href="/?q=ai-news">AI News</a></li>
+                <li><a href="/?q=daily-highlights">Daily Highlights</a></li>
+                <li><a href="/?q=sports">Sports</a></li>
+                <li><a href="/?q=games">Games</a></li>
               </ul>
 
               <div className="side-title" style={{marginTop:18}}>Ad</div>
