@@ -318,13 +318,13 @@ Return ONLY valid JSON with this exact structure:
 async function insertArticle(
   article: AIRewriteResult, 
   categoryId: number | null
-): Promise<boolean> {
+): Promise<boolean | 'slug_exists'> {
   try {
     // Check if slug already exists
     const exists = await articleExists(article.new_slug)
     if (exists) {
-      console.log(`Article with slug "${article.new_slug}" already exists. Skipping.`)
-      return false
+      console.log(`[DEBUG] SKIP: slug already exists:`, article.new_slug)
+      return 'slug_exists'
     }
 
     const supabase = getSupabaseClient()
@@ -341,13 +341,13 @@ async function insertArticle(
     ])
 
     if (error) {
-      console.error('Error inserting article:', error)
+      console.error('[ERROR] Supabase insert error:', error)
       return false
     }
 
     return true
   } catch (error) {
-    console.error('Error in insertArticle:', error)
+    console.error('[ERROR] Exception in insertArticle:', error)
     return false
   }
 }
@@ -384,7 +384,7 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Fetch articles from Event Registry
     const articles = await fetchFromEventRegistry()
-    console.log(`Fetched ${articles.length} articles from Event Registry`)
+    console.log('[DEBUG] fetchedArticles count:', articles.length)
 
     if (articles.length === 0) {
       return NextResponse.json({
@@ -395,12 +395,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 2: Process each article
-    let processedCount = 0
-    let insertedCount = 0
+    const articlesToProcess = articles.slice(0, processLimit)
+    console.log('[DEBUG] articlesToProcess count:', articlesToProcess.length)
+
+    let attempted = 0
+    let inserted = 0
     const categoryStats: Record<string, number> = {}
     const dryRunResults: any[] = []
+    const skipStats = {
+      missing_category: 0,
+      slug_exists: 0,
+      rewrite_failed: 0,
+      insert_failed: 0,
+      other: 0
+    }
 
-    for (const article of articles.slice(0, processLimit)) {
+    for (const article of articlesToProcess) {
       try {
         const sourceName = article.source?.title || 'Unknown Source'
         
@@ -413,9 +423,13 @@ export async function GET(request: NextRequest) {
         // Get category ID
         const categoryId = await getCategoryId(categorySlug)
         if (!categoryId) {
-          console.log(`Skipping article - category "${categorySlug}" not found in database`)
+          console.log(`[DEBUG] SKIP: missing category "${categorySlug}" for article:`, article.title)
+          skipStats.missing_category++
           continue
         }
+
+        // Log before calling OpenAI
+        console.log('[DEBUG] REWRITE START:', article.title)
 
         // Rewrite article with AI
         const rewritten = await rewriteArticleWithAI(
@@ -425,9 +439,13 @@ export async function GET(request: NextRequest) {
         )
 
         if (!rewritten) {
-          console.log(`Failed to rewrite article: ${article.title}`)
+          console.log(`[DEBUG] SKIP: rewrite failed for article:`, article.title)
+          skipStats.rewrite_failed++
           continue
         }
+
+        // Increment attempted counter after successful OpenAI response
+        attempted++
 
         if (isDryRun) {
           // Dry run mode: just log what would be inserted
@@ -440,34 +458,49 @@ export async function GET(request: NextRequest) {
             content_preview: rewritten.new_content.substring(0, 100) + '...'
           })
           console.log(`[DRY RUN] Would insert: ${rewritten.new_title} (${categorySlug})`)
+          inserted++
         } else {
           // Live mode: insert into database
-          const inserted = await insertArticle(rewritten, categoryId)
-          if (inserted) {
-            insertedCount++
-            console.log(`Inserted: ${rewritten.new_title} (${categorySlug})`)
+          const insertResult = await insertArticle(rewritten, categoryId)
+          if (insertResult === true) {
+            inserted++
+            console.log('[DEBUG] INSERT OK:', rewritten.new_slug)
+          } else if (insertResult === 'slug_exists') {
+            skipStats.slug_exists++
+          } else {
+            console.error('[ERROR] Supabase insert failed for slug:', rewritten.new_slug)
+            skipStats.insert_failed++
           }
         }
-
-        processedCount++
 
         // Add small delay to avoid rate limits
         await new Promise(resolve => setTimeout(resolve, 1000))
       } catch (error) {
-        console.error(`Error processing article "${article.title}":`, error)
+        console.error(`[ERROR] Exception processing article "${article.title}":`, error)
+        skipStats.other++
       }
     }
 
-    return NextResponse.json({
+    const response: any = {
       success: true,
       message: isDryRun ? 'Dry run completed - no data written' : 'News fetch and rewrite completed',
       dry_run: isDryRun,
-      processed: processedCount,
-      inserted: isDryRun ? 0 : insertedCount,
+      processed: attempted,
+      inserted: inserted,
       total_fetched: articles.length,
       category_stats: categoryStats,
-      ...(isDryRun && { preview: dryRunResults.slice(0, 5) })
-    })
+      skip_stats: skipStats
+    }
+
+    if (attempted === 0 && articlesToProcess.length > 0) {
+      response.reason = 'no_eligible_articles'
+    }
+
+    if (isDryRun && dryRunResults.length > 0) {
+      response.preview = dryRunResults.slice(0, 5)
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error in fetch-news route:', error)
     return NextResponse.json(
