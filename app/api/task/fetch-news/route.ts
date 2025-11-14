@@ -309,8 +309,8 @@ Return ONLY valid JSON with this exact structure:
 
     return result
   } catch (error) {
-    console.error('Error rewriting with AI:', error)
-    return null
+    // Re-throw error so it can be caught and logged in the main loop
+    throw error
   }
 }
 
@@ -400,6 +400,7 @@ export async function GET(request: NextRequest) {
 
     let attempted = 0
     let inserted = 0
+    let lastAiError: string | null = null
     const categoryStats: Record<string, number> = {}
     const dryRunResults: any[] = []
     const skipStats = {
@@ -432,11 +433,34 @@ export async function GET(request: NextRequest) {
         console.log('[DEBUG] REWRITE START:', article.title)
 
         // Rewrite article with AI
-        const rewritten = await rewriteArticleWithAI(
-          article.title,
-          article.body,
-          sourceName
-        )
+        let rewritten: AIRewriteResult | null = null
+        try {
+          rewritten = await rewriteArticleWithAI(
+            article.title,
+            article.body,
+            sourceName
+          )
+        } catch (err) {
+          console.error('[AI ERROR] rewrite failed:', err)
+
+          let errMsg = 'unknown_error'
+          if (err instanceof Error && err.message) {
+            errMsg = err.message
+          } else if (typeof err === 'object') {
+            try {
+              errMsg = JSON.stringify(err)
+            } catch (_) {
+              errMsg = String(err)
+            }
+          } else {
+            errMsg = String(err)
+          }
+
+          lastAiError = errMsg
+          skipStats.rewrite_failed++
+          console.log('[DEBUG] SKIP: rewrite failed for article:', article.title, 'error:', errMsg)
+          continue
+        }
 
         if (!rewritten) {
           console.log(`[DEBUG] SKIP: rewrite failed for article:`, article.title)
@@ -489,7 +513,8 @@ export async function GET(request: NextRequest) {
       inserted: inserted,
       total_fetched: articles.length,
       category_stats: categoryStats,
-      skip_stats: skipStats
+      skip_stats: skipStats,
+      last_ai_error: lastAiError
     }
 
     if (attempted === 0 && articlesToProcess.length > 0) {
