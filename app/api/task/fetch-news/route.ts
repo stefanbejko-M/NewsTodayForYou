@@ -1,9 +1,32 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const CRON_SECRET = process.env.CRON_SECRET
+
+// Helper: Check if request is authorized
+function isAuthorized(req: NextRequest, dryRun: boolean) {
+  // Allow all dry-run calls (for testing)
+  if (dryRun) return true
+
+  // If there is no CRON_SECRET configured, do not restrict access
+  if (!CRON_SECRET) return true
+
+  const url = new URL(req.url)
+  const header = req.headers.get('authorization')
+  const secretParam = url.searchParams.get('secret')
+
+  // 1) Vercel Cron – Authorization: Bearer CRON_SECRET
+  if (header === `Bearer ${CRON_SECRET}`) return true
+
+  // 2) Manual browser call – ?secret=CRON_SECRET
+  if (secretParam && secretParam === CRON_SECRET) return true
+
+  return false
+}
 
 // Helper: Get Supabase client (lazy initialization)
 function getSupabaseClient() {
@@ -328,7 +351,7 @@ async function insertArticle(
 }
 
 // Main handler
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     // Parse query parameters for testing
     const url = new URL(request.url)
@@ -336,12 +359,12 @@ export async function GET(request: Request) {
     const limitParam = url.searchParams.get('limit')
     const processLimit = limitParam ? parseInt(limitParam, 10) : 20
 
-    // Verify cron secret for security (skip for dry runs in development)
-    const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-    
-    if (cronSecret && !isDryRun && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Check authorization
+    if (!isAuthorized(request, isDryRun)) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
     }
 
     console.log('Starting news fetch and rewrite process...')
