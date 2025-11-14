@@ -7,6 +7,8 @@ export const revalidate = 0
 
 const CRON_SECRET = process.env.CRON_SECRET
 
+console.log('[DEBUG] OPENAI_API_KEY present:', !!process.env.OPENAI_API_KEY)
+
 // Helper: Check if request is authorized
 function isAuthorized(req: NextRequest, dryRun: boolean) {
   // Allow all dry-run calls (for testing)
@@ -364,6 +366,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
+      )
+    }
+
+    // Check for OpenAI API key before processing
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('[ERROR] Missing OPENAI_API_KEY in environment')
+      return NextResponse.json(
+        { success: false, message: 'Missing OPENAI_API_KEY on server' },
+        { status: 500 }
       )
     }
 
