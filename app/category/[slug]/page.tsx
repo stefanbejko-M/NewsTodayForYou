@@ -12,7 +12,7 @@ type Row = {
   excerpt?: string | null
 }
 
-export default async function Home() {
+export default async function CategoryPage({ params }: { params: { slug: string } }) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -24,9 +24,33 @@ export default async function Home() {
 
     const client = createClient(supabaseUrl, supabaseKey)
     
+    // First, get the category ID from the slug
+    const { data: categoryData, error: categoryError } = await client
+      .from('category')
+      .select('id, slug, name')
+      .eq('slug', params.slug)
+      .maybeSingle()
+    
+    if (categoryError) {
+      let errorMsg = 'Unknown error'
+      try {
+        errorMsg = categoryError instanceof Error ? categoryError.message : JSON.stringify(categoryError)
+      } catch {
+        errorMsg = String(categoryError)
+      }
+      console.error('[PAGE ERROR]', errorMsg)
+      return <div>Failed to load posts.</div>
+    }
+
+    if (!categoryData) {
+      return <div>Category not found.</div>
+    }
+
+    // Fetch posts for this category
     const { data, error } = await client
       .from('post')
       .select('title, slug, created_at, source_name, body, excerpt')
+      .eq('category_id', categoryData.id)
       .order('created_at', { ascending: false })
       .limit(20)
     
@@ -60,12 +84,14 @@ export default async function Home() {
         excerpt: typeof p.excerpt === 'string' ? p.excerpt : (typeof p.body === 'string' ? p.body.slice(0, 200) : '')
       }))
 
+    const categoryName = categoryData.name || params.slug
+
     return (
       <div>
-        <h1>Latest</h1>
+        <h1>{categoryName}</h1>
         {validPosts.length === 0 ? (
           <p style={{ color: '#666', padding: '20px 0' }}>
-            No articles yet. Check back soon!
+            No articles in this category yet. Check back soon!
           </p>
         ) : (
           <ul>
@@ -85,3 +111,4 @@ export default async function Home() {
     return <div>Failed to load posts.</div>
   }
 }
+

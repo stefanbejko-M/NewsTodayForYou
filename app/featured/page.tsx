@@ -12,7 +12,7 @@ type Row = {
   excerpt?: string | null
 }
 
-export default async function Home() {
+export default async function Featured() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -24,6 +24,7 @@ export default async function Home() {
 
     const client = createClient(supabaseUrl, supabaseKey)
     
+    // Fetch featured posts (you can add a featured flag or use a different query)
     const { data, error } = await client
       .from('post')
       .select('title, slug, created_at, source_name, body, excerpt')
@@ -62,10 +63,10 @@ export default async function Home() {
 
     return (
       <div>
-        <h1>Latest</h1>
+        <h1>Featured</h1>
         {validPosts.length === 0 ? (
           <p style={{ color: '#666', padding: '20px 0' }}>
-            No articles yet. Check back soon!
+            No featured articles yet. Check back soon!
           </p>
         ) : (
           <ul>
@@ -85,3 +86,4 @@ export default async function Home() {
     return <div>Failed to load posts.</div>
   }
 }
+

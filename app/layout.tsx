@@ -5,8 +5,27 @@ import Analytics from '../components/Analytics'
 
 export const dynamic = 'force-dynamic'
 
+// Safely get metadataBase URL with fallback
+function getMetadataBase(): URL {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  const fallbackUrl = 'https://newstoday4u.com'
+  
+  // If env var is missing or empty, use fallback
+  if (!siteUrl || !siteUrl.trim()) {
+    return new URL(fallbackUrl)
+  }
+  
+  // Try to create URL from env var, catch any errors
+  try {
+    return new URL(siteUrl)
+  } catch {
+    // If URL is invalid, use fallback
+    return new URL(fallbackUrl)
+  }
+}
+
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
+  metadataBase: getMetadataBase(),
   title: { default: 'NewsTodayForYou', template: '%s · NewsTodayForYou' },
   description: 'Fast, legal, summarized breaking news for EN markets.',
   alternates: { canonical: '/' },

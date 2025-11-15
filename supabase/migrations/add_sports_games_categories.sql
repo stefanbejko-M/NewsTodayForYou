@@ -7,3 +7,4 @@ VALUES
   ('games', 'Games')
 ON CONFLICT (slug) DO NOTHING;
 
+

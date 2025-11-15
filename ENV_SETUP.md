@@ -60,3 +60,4 @@ Your production domain for SEO and metadata.
    - Add each variable for Production, Preview, and Development environments
 3. Redeploy after adding environment variables
 
+

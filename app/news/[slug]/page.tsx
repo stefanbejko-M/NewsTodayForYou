@@ -19,12 +19,15 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   
   const { data } = await client
     .from('post')
-    .select('title, excerpt')
+    .select('title, excerpt, body')
     .eq('slug', params.slug)
     .maybeSingle()
 
   const title = data?.title ?? 'Article'
-  const description = (data?.excerpt ?? '').slice(0, 160) || 'Latest article on NewsTodayForYou'
+  
+  // Safely get description: use excerpt if available, otherwise fall back to body
+  const excerptOrBody = data?.excerpt || data?.body || ''
+  const description = excerptOrBody ? excerptOrBody.slice(0, 160) : 'Latest article on NewsTodayForYou'
 
   return {
     title,
@@ -40,51 +43,59 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function NewsDetail({ params }: { params: { slug: string } }) {
-  const client = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-  
-  const { data: post } = await client
-    .from('post')
-    .select('*')
-    .eq('slug', params.slug)
-    .single()
+  try {
+    const client = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    
+    const { data: post, error } = await client
+      .from('post')
+      .select('*')
+      .eq('slug', params.slug)
+      .maybeSingle()
 
-  if (!post) return <div>Article not found</div>
+    if (error || !post) {
+      return <div>Article not found</div>
+    }
 
-  // Convert markdown headings to HTML
-  const formatContent = (content: string) => {
-    return content
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/\n\n/g, '</p><p>')
-  }
+    // Convert markdown headings to HTML
+    const formatContent = (content: string | null | undefined) => {
+      if (!content) return ''
+      return content
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/\n\n/g, '</p><p>')
+    }
 
-  const formattedBody = `<p>${formatContent(post.body)}</p>`
+    const bodyContent = post.body || ''
+    const formattedBody = `<p>${formatContent(bodyContent)}</p>`
 
-  return (
-    <article>
-      <h1>{post.title}</h1>
-      <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
-        <em>{new Date(post.created_at).toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })}</em>
-      </p>
-      <div dangerouslySetInnerHTML={{ __html: formattedBody }} />
-      <div style={{ marginTop: 24 }}>
-        <div id="ad-in-1" />
-      </div>
-      {post.source_name && (
-        <div style={{
-          fontSize: '11px',
-          opacity: 0.45,
-          marginTop: '28px'
-        }}>
-          Source: {post.source_name}
+    return (
+      <article>
+        <h1>{post.title}</h1>
+        <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
+          <em>{new Date(post.created_at).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}</em>
+        </p>
+        <div dangerouslySetInnerHTML={{ __html: formattedBody }} />
+        <div style={{ marginTop: 24 }}>
+          <div id="ad-in-1" />
         </div>
-      )}
-    </article>
-  )
+        {post.source_name && (
+          <div style={{
+            fontSize: '11px',
+            opacity: 0.45,
+            marginTop: '28px'
+          }}>
+            Source: {post.source_name}
+          </div>
+        )}
+      </article>
+    )
+  } catch (error) {
+    return <div>Article not found</div>
+  }
 }
