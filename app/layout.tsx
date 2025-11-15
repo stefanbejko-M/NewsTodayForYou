@@ -1,5 +1,4 @@
 import './globals.css'
-import { Suspense } from 'react'
 import Header from '../components/Header'
 import Analytics from '../components/Analytics'
 
