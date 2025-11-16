@@ -2,6 +2,7 @@ import './globals.css'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import Analytics from '../components/Analytics'
+import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,31 +25,36 @@ function getMetadataBase(): URL {
   }
 }
 
-export const metadata = {
+export const metadata: Metadata = {
   metadataBase: getMetadataBase(),
   title: 'NewsTodayForYou',
-  description: 'Fast, legal, summarized breaking news for EN markets.',
+  description: 'NewsTodayForYou е агрегатор на најнови светски вести – политика, спорт, технологија, игри и повеќе, освежувани на секои 3 часа.',
   alternates: { canonical: '/' },
   icons: {
     icon: [
-      { url: '/favicon.ico' },
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
       { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' }
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
     ],
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
-    ]
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   manifest: '/site.webmanifest',
   openGraph: {
-    type: 'website',
-    siteName: 'NewsTodayForYou',
-    url: '/',
     title: 'NewsTodayForYou',
-    description: 'Fast, legal, summarized breaking news for EN markets.'
+    description: 'Ваш прозорец кон светот – свежи вести, автоматски ажурирани.',
+    type: 'website',
+    url: '/',
+    siteName: 'NewsTodayForYou',
   },
-  robots: { index: true, follow: true }
+  twitter: {
+    card: 'summary_large_image',
+    title: 'NewsTodayForYou',
+    description: 'Ваш прозорец кон светот – свежи вести, автоматски ажурирани.',
+  },
+  robots: { index: true, follow: true },
+  other: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { 'google-site-verification': process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

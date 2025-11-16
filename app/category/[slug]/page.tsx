@@ -1,7 +1,41 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
+import type { Metadata } from 'next'
 
 export const revalidate = 0
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const client = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+  
+  const { data: categoryData } = await client
+    .from('category')
+    .select('name')
+    .eq('slug', params.slug)
+    .maybeSingle()
+
+  const categoryName = categoryData?.name || params.slug
+  const title = `${categoryName} – NewsTodayForYou`
+  const description = `Последни вести од категоријата ${categoryName}. NewsTodayForYou агрегира најнови новости од доверливи извори.`
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      siteName: 'NewsTodayForYou',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
+  }
+}
 
 type Row = { 
   title: string | null
@@ -92,6 +126,9 @@ export default async function CategoryPage({ params }: { params: { slug: string 
     return (
       <div>
         <h1>{categoryName}</h1>
+        <p style={{ color: '#4b5563', marginBottom: '24px', maxWidth: '640px' }}>
+          Последни вести од категоријата {categoryName}. NewsTodayForYou агрегира најнови новости од доверливи извори и ги освежува на секои неколку часа.
+        </p>
         {validPosts.length === 0 ? (
           <p style={{ color: '#666', padding: '20px 0' }}>
             No articles in this category yet. Check back soon!

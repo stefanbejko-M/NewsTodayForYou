@@ -5,16 +5,25 @@ export const metadata = {
 
 export default function ContactPage() {
   return (
-    <div className="container" style={{ padding: '24px 0' }}>
+    <div className="container" style={{ padding: '24px 0', maxWidth: '800px' }}>
       <h1>Contact</h1>
       <p>
-        We welcome your feedback and inquiries. For general questions, partnership opportunities, or to report an issue, please contact us at:
+        Добредојдовте да се контактирате со нас. Ве молиме да го користите следниот емаил за сите прашања и барања.
       </p>
       <p>
-        <strong>Email:</strong> <a href="mailto:office@newstoday4u.com">office@newstoday4u.com</a>
+        <strong>Емаил:</strong> <a href="mailto:office@newstoday4u.com">office@newstoday4u.com</a>
       </p>
       <p>
-        We aim to respond as promptly as possible.
+        Овој емаил е достапен за:
+      </p>
+      <ul style={{ lineHeight: '1.8' }}>
+        <li><strong>Деловна соработка</strong> – партнерства, рекламирање, спонзорства</li>
+        <li><strong>Известување за грешки</strong> – технички проблеми, неточни информации</li>
+        <li><strong>Барање за отстранување на содржина</strong> – DMCA барања, авторски права</li>
+        <li><strong>Општи прашања</strong> – повратни информации, предлози</li>
+      </ul>
+      <p>
+        Се стремиме да одговориме што е можно побрзо, обично во рок од 48 часа.
       </p>
     </div>
   )

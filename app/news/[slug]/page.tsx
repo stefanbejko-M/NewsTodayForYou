@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
+import Script from 'next/script'
+import type { Metadata } from 'next'
 
 export const revalidate = 0
 
@@ -17,7 +19,7 @@ type Post = {
   category?: any
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const client = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -25,15 +27,23 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   
   const { data } = await client
     .from('post')
-    .select('title, excerpt, body')
+    .select('title, excerpt, body, image_url')
     .eq('slug', params.slug)
     .maybeSingle()
 
-  const title = data?.title ?? 'Article'
+  const title = data?.title ?? 'NewsTodayForYou'
   
-  // Safely get description: use excerpt if available, otherwise fall back to body
-  const excerptOrBody = data?.excerpt || data?.body || ''
-  const description = excerptOrBody ? excerptOrBody.slice(0, 160) : 'Latest article on NewsTodayForYou'
+  // Get description: prefer excerpt, otherwise first 150 chars of body
+  let description = 'Latest article on NewsTodayForYou'
+  if (data?.excerpt) {
+    description = data.excerpt.trim().slice(0, 150)
+  } else if (data?.body) {
+    description = data.body.trim().slice(0, 150)
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
+  const articleUrl = `${siteUrl}/news/${params.slug}`
+  const images = data?.image_url ? [data.image_url] : []
 
   return {
     title,
@@ -42,9 +52,17 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     openGraph: {
       title,
       description,
-      url: `/news/${params.slug}`,
-      type: 'article'
-    }
+      url: articleUrl,
+      type: 'article',
+      images: images.length > 0 ? images : undefined,
+      siteName: 'NewsTodayForYou',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: images.length > 0 ? images : undefined,
+    },
   }
 }
 
@@ -98,35 +116,75 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
     const formattedBody = `<p>${formatContent(bodyContent)}</p>`
     const cat = Array.isArray((post as any).category) ? (post as any).category[0] : (post as any).category
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
+    const articleUrl = `${siteUrl}/news/${post.slug}`
+    const publishedDate = post.created_at || new Date().toISOString()
+    const modifiedDate = (post as any).updated_at || post.created_at || new Date().toISOString()
+
     return (
-      <article>
-        <h1>{post.title}</h1>
-        {cat && cat?.slug && cat?.name ? (
-          <div style={{ color: '#64748b', fontSize: '14px', marginBottom: '12px' }}>
-            <span>Category: </span>
-            <Link href={`/category/${cat.slug}`} style={{ color: '#1d4ed8', textDecoration: 'none' }}>
-              {cat.name}
-            </Link>
+      <>
+        <article>
+          <h1>{post.title}</h1>
+          {cat && cat?.slug && cat?.name ? (
+            <div style={{ color: '#64748b', fontSize: '14px', marginBottom: '12px' }}>
+              <span>Category: </span>
+              <Link href={`/category/${cat.slug}`} style={{ color: '#1d4ed8', textDecoration: 'none' }}>
+                {cat.name}
+              </Link>
+            </div>
+          ) : null}
+          <div style={{ color: '#6b7280', fontSize: '14px', marginBottom: '12px' }}>
+            <span>By NewsTodayForYou Staff</span>
           </div>
-        ) : null}
-        {post.image_url ? (
-          <img src={post.image_url} alt={post.title} />
-        ) : null}
-        <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '32px' }}>
-          <em>{new Date(post.created_at).toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}</em>
-          {post.source_name && (
-            <span style={{ marginLeft: '12px' }}>• {post.source_name}</span>
-          )}
-        </p>
-        <div dangerouslySetInnerHTML={{ __html: formattedBody }} />
-        <div style={{ marginTop: 48, marginBottom: 32 }}>
-          <div id="ad-in-1" style={{ minHeight: '250px', padding: '16px', border: '1px solid var(--border)', borderRadius: '12px' }} />
-        </div>
-      </article>
+          {post.image_url ? (
+            <img 
+              src={post.image_url} 
+              alt={post.title || 'News article image'} 
+            />
+          ) : null}
+          <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '32px' }}>
+            <em>{new Date(post.created_at).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}</em>
+            {post.source_name && (
+              <span style={{ marginLeft: '12px' }}>• {post.source_name}</span>
+            )}
+          </p>
+          <div dangerouslySetInnerHTML={{ __html: formattedBody }} />
+          <div style={{ marginTop: 48, marginBottom: 32 }}>
+            <div id="ad-in-1" style={{ minHeight: '250px', padding: '16px', border: '1px solid var(--border)', borderRadius: '12px' }} />
+          </div>
+        </article>
+        <Script id={`news-article-jsonld-${post.slug}`} type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'NewsArticle',
+            headline: post.title || 'News article',
+            description: post.excerpt || (typeof post.body === 'string' ? post.body.slice(0, 160) : ''),
+            image: post.image_url ? [post.image_url] : [],
+            datePublished: publishedDate,
+            dateModified: modifiedDate,
+            author: {
+              '@type': 'Organization',
+              name: 'NewsTodayForYou',
+            },
+            publisher: {
+              '@type': 'Organization',
+              name: 'NewsTodayForYou',
+              logo: {
+                '@type': 'ImageObject',
+                url: `${siteUrl}/android-chrome-192x192.png`,
+              },
+            },
+            mainEntityOfPage: {
+              '@type': 'WebPage',
+              '@id': articleUrl,
+            },
+          })}
+        </Script>
+      </>
     )
   } catch (error) {
     return <div>Article not found</div>

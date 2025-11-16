@@ -95,7 +95,13 @@ export default async function Home() {
 
     return (
       <div>
-        <h1>Latest</h1>
+        <section className="home-intro">
+          <h1>Latest News</h1>
+          <p>
+            NewsTodayForYou е агрегатор на вести што автоматски собира и преработува најнови
+            новости од доверливи извори. Вестите се освежуваат на секои неколку часа за да останете во тек.
+          </p>
+        </section>
         {validPosts.length === 0 ? (
           <p style={{ color: '#666', padding: '20px 0' }}>
             No articles yet. Check back soon!

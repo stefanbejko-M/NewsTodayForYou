@@ -1,7 +1,24 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
+import type { Metadata } from 'next'
 
 export const revalidate = 0
+
+export const metadata: Metadata = {
+  title: 'Trending News – NewsTodayForYou',
+  description: 'Најкликани вести во последни 6 часа. NewsTodayForYou ви ги прикажува најпопуларните статии според бројот на прегледи.',
+  openGraph: {
+    title: 'Trending News – NewsTodayForYou',
+    description: 'Најкликани вести во последни 6 часа. NewsTodayForYou ви ги прикажува најпопуларните статии според бројот на прегледи.',
+    type: 'website',
+    siteName: 'NewsTodayForYou',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Trending News – NewsTodayForYou',
+    description: 'Најкликани вести во последни 6 часа. NewsTodayForYou ви ги прикажува најпопуларните статии според бројот на прегледи.',
+  },
+}
 
 type Row = { 
   title: string | null
@@ -72,6 +89,9 @@ export default async function Featured() {
       return (
         <div>
           <h1>Trending News</h1>
+          <p style={{ color: '#4b5563', marginBottom: '24px', maxWidth: '640px' }}>
+            Најкликани вести во последни 6 часа. NewsTodayForYou ви ги прикажува најпопуларните статии според бројот на прегледи.
+          </p>
           {validPosts.length === 0 ? (
             <p style={{ color: '#666', padding: '20px 0' }}>
               No trending articles yet. Check back soon!

@@ -68,6 +68,7 @@ interface AIRewriteResult {
   new_title: string
   new_slug: string
   new_content: string
+  new_excerpt?: string
   source_name: string
 }
 
@@ -339,7 +340,8 @@ Follow these rules:
 - Provide a unique SEO-friendly slug based on the new title.
 - DO NOT fabricate facts.
 - DO NOT hallucinate names or statistics.
-- Keep article length between 180–350 words.
+- IMPORTANT: Write a comprehensive article of at least 350–600 words when enough source text exists. Make it detailed and informative.
+- Create a short SEO-friendly excerpt (1–2 sentences, max 150 characters) that summarizes the article.
 - Final line MUST be exactly:
 
 Source: ${sourceName}
@@ -355,6 +357,7 @@ Return ONLY valid JSON with this exact structure:
   "new_title": "...",
   "new_slug": "...",
   "new_content": "...",
+  "new_excerpt": "...",
   "source_name": "${sourceName}"
 }`
 
@@ -373,7 +376,7 @@ Return ONLY valid JSON with this exact structure:
         },
       ],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 2000,
     })
 
     const content = completion.choices[0]?.message?.content
@@ -421,6 +424,7 @@ async function insertArticle(
         title: article.new_title,
         slug: article.new_slug,
         body: article.new_content,
+        excerpt: article.new_excerpt || null,
         source_name: article.source_name,
         source_url: '',
         category_id: categoryId,

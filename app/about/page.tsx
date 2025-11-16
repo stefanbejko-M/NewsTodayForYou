@@ -5,17 +5,27 @@ export const metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="container" style={{ padding: '24px 0' }}>
+    <div className="container" style={{ padding: '24px 0', maxWidth: '800px' }}>
       <h1>About</h1>
       <p>
-        NewsTodayForYou is a simple, fast, and reader-friendly news aggregation site. Our aim is to surface timely, relevant updates across major topics while helping readers quickly scan headlines and summaries.
+        NewsTodayForYou е агрегатор на вести што автоматски собира и преработува најнови новости од доверливи извори. Нашата цел е да ви обезбедиме лесен преглед на светските вести со фокус на релевантност и точност.
       </p>
       <p>
-        We combine editorial curation with automated tools to highlight important stories and provide concise summaries. For full coverage and additional context, we link to original sources wherever possible.
+        Користиме надворешни извори и автоматизирани системи за преработка на новости. Вестите се освежуваат на секои неколку часа за да останете во тек со најважните настани. За целосна покриеност и дополнителен контекст, секогаш кога е можно, ги наведуваме оригиналните извори.
       </p>
       <p>
-        Сајтот <strong>NewsTodayForYou</strong> е агрегатор на вести кој користи надворешни извори и автоматизирани системи за преработка на новости. Не сме поврзани со оригиналните издавачи; нивните трговски марки и содржини се сопственост на нивните носители.
+        <strong>Важно:</strong> Сајтот NewsTodayForYou е агрегатор на вести кој користи надворешни извори и автоматизирани системи за преработка на новости. Не сме поврзани со оригиналните издавачи; нивните трговски марки и содржини се сопственост на нивните носители.
       </p>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Категории</h2>
+      <p>Покриваме следниве категории на вести:</p>
+      <ul style={{ lineHeight: '1.8' }}>
+        <li><strong>Политика</strong> – избори, владини одлуки, меѓународни односи</li>
+        <li><strong>Спорт</strong> – фудбал, кошарка, тенис, олимписки игри и други спортови</li>
+        <li><strong>Технологија</strong> – AI вести, иновации, софтвер и хардвер</li>
+        <li><strong>Игри</strong> – видео игри, еспортс, игри на конзоли и PC</li>
+        <li><strong>Celebrity</strong> – вести за познати личности, забава и култура</li>
+        <li><strong>Daily Highlights</strong> – општи вести и важни настани</li>
+      </ul>
     </div>
   )
 }

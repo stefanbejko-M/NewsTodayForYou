@@ -5,16 +5,31 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="container" style={{ padding: '24px 0' }}>
+    <div className="container" style={{ padding: '24px 0', maxWidth: '800px' }}>
       <h1>Terms of Use</h1>
       <p>
-        By accessing or using this website, you agree to be bound by these Terms of Use. We provide news summaries and links for informational purposes only. We do not guarantee the accuracy, completeness, or timeliness of any content.
+        Со пристапување или користење на овој веб-сајт, се согласувате да бидете обврзани со овие Услови за користење. NewsTodayForYou обезбедува прегледи на вести и линкови само за информативни цели.
+      </p>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Кориснички обврски</h2>
+      <p>
+        Се согласувате да:
+      </p>
+      <ul style={{ lineHeight: '1.8' }}>
+        <li>Не злоупотребувате со сајтот или не се обидувате да го нарушите нашиот сервис</li>
+        <li>Не ги нарушувате правата на другите корисници или трети страни</li>
+        <li>Не користите автоматизирани системи за скрапирање или масовно собирање податоци без дозвола</li>
+        <li>Не објавувате содржина која е незаконска, навредлива или крши авторски права</li>
+      </ul>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Ограничување на одговорност</h2>
+      <p>
+        Не гарантираме точност, комплетност или навременост на содржината. Сите вести се агрегирани од надворешни извори и може да содржат грешки. Користите го сајтот на сопствен ризик.
+      </p>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Интелектуална сопственост</h2>
+      <p>
+        Сите трговски марки, логоа и содржини остануваат сопственост на нивните сопственици. NewsTodayForYou не тврди сопственост над оригиналните извори. Ако верувате дека вашите права се нарушени, ве молиме контактирајте не на <a href="mailto:office@newstoday4u.com">office@newstoday4u.com</a>.
       </p>
       <p>
-        You agree not to misuse the site, attempt to disrupt our services, or infringe upon the rights of others. We may update these terms from time to time; continued use of the site indicates your acceptance of any changes.
-      </p>
-      <p>
-        All trademarks, logos, and content remain the property of their respective owners. If you believe your rights have been infringed, please contact us.
+        Може да ги ажурираме овие услови од време на време. Продолженото користење на сајтот по промените укажува на вашето прифаќање на новите услови.
       </p>
     </div>
   )

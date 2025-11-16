@@ -180,9 +180,20 @@ article > div[dangerouslySetInnerHTML] h2{
   color: #111827;
 }
 .logo-img{
-  height: 36px;
-  width: auto;
+  height: 32px;
+  width: 32px;
+  border-radius: 50%;
   display: inline-block;
+  object-fit: cover;
+}
+.home-intro{
+  margin-bottom: 24px;
+}
+.home-intro p{
+  color: #4b5563;
+  max-width: 640px;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 .nav-links{
   margin-left: auto;

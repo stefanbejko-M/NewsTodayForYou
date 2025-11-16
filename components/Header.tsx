@@ -61,7 +61,7 @@ export default function Header() {
       <header className="site-header">
         <div className="logo">
           <Link href="/" aria-label="NewsTodayForYou home">
-            <img src="/logo.svg" alt="NewsTodayForYou" className="logo-img" />
+            <img src="/android-chrome-192x192.png" alt="NewsTodayForYou" className="logo-img" />
           </Link>
         </div>
         <button
