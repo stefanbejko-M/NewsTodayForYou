@@ -11,7 +11,7 @@ export default function ContactPage() {
         We welcome your feedback and inquiries. For general questions, partnership opportunities, or to report an issue, please contact us at:
       </p>
       <p>
-        <strong>Email:</strong> contact@example.com
+        <strong>Email:</strong> <a href="mailto:office@newstoday4u.com">office@newstoday4u.com</a>
       </p>
       <p>
         We aim to respond as promptly as possible.

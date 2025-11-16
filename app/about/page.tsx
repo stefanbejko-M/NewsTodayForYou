@@ -13,6 +13,9 @@ export default function AboutPage() {
       <p>
         We combine editorial curation with automated tools to highlight important stories and provide concise summaries. For full coverage and additional context, we link to original sources wherever possible.
       </p>
+      <p>
+        Сајтот <strong>NewsTodayForYou</strong> е агрегатор на вести кој користи надворешни извори и автоматизирани системи за преработка на новости. Не сме поврзани со оригиналните издавачи; нивните трговски марки и содржини се сопственост на нивните носители.
+      </p>
     </div>
   )
 }

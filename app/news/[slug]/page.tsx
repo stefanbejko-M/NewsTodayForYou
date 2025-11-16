@@ -55,13 +55,17 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
     
-    const { data: post, error } = await client
+    const { data, error } = await client
       .from('post')
       .select('id, title, slug, body, excerpt, created_at, source_name, views, image_url, category:category_id ( slug, name )')
       .eq('slug', params.slug)
       .maybeSingle()
 
-    if (error || !post) {
+    // Server-side log for diagnostics (will not render on client)
+    console.error('[NEWS PAGE DATA]', data, error)
+
+    const post = (Array.isArray(data) ? data[0] : data) as (Post | null);
+    if (!post) {
       return <div>Article not found</div>
     }
 

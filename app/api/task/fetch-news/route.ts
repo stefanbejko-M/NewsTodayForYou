@@ -58,6 +58,9 @@ interface EventRegistryArticle {
   image?: string | null
   imageUrl?: string | null
   image_url?: string | null
+  // some feeds may include category information
+  categories?: Array<{ uri?: string; label?: string; name?: string }>
+  categoryUri?: string | string[]
 }
 
 interface AIRewriteResult {
@@ -137,6 +140,31 @@ function detectCategory(title: string, source: string): string {
 
   // Default fallback
   return 'ai-news'
+}
+
+// Prefer deterministic mapping from Event Registry category fields to our known slugs
+function getCategorySlugFromArticle(article: EventRegistryArticle | any): 'celebrity' | 'politics' | 'ai-news' | 'sports' | 'games' | 'daily-highlights' {
+  try {
+    const parts: string[] = []
+    const pushStr = (v: any) => { if (typeof v === 'string') { parts.push(v) } }
+    const tryArr = (arr: any) => { if (Array.isArray(arr)) { for (const it of arr) { if (typeof it === 'string') pushStr(it); else if (it && typeof it === 'object') { pushStr(it.uri); pushStr(it.label); pushStr(it.name) } } } }
+
+    // Collect possible category indicators from various shapes
+    pushStr((article as any)?.categoryUri)
+    tryArr((article as any)?.categoryUri)
+    tryArr((article as any)?.categories)
+    tryArr((article as any)?.data?.categories)
+
+    const hay = parts.join(' | ').toLowerCase()
+    if (hay.includes('society/people/celebrity') || hay.includes('celebrity')) return 'celebrity'
+    if (hay.includes('society/politics') || hay.includes('politic')) return 'politics'
+    if (hay.includes('computers/artificial_intelligence') || hay.includes('artificial intelligence') || hay.includes('artificial_intelligence')) return 'ai-news'
+    if (hay.includes('sports')) return 'sports'
+    if (hay.includes('games')) return 'games'
+    return 'daily-highlights'
+  } catch {
+    return 'daily-highlights'
+  }
 }
 
 // Helper: Get or create category ID
@@ -474,15 +502,27 @@ export async function GET(request: NextRequest) {
     for (const article of articlesToProcess) {
       try {
         const sourceName = article.source?.title || 'Unknown Source'
-        
-        // Detect category
-        const categorySlug = detectCategory(article.title, sourceName)
+        // Prefer deterministic category from Event Registry, fallback to title/source keyword mapping
+        let categorySlug = getCategorySlugFromArticle(article)
+        if (!categorySlug || categorySlug === 'daily-highlights') {
+          const fromTitle = detectCategory(article.title, sourceName)
+          categorySlug = (fromTitle as any) || 'daily-highlights'
+        }
+        console.log('[CATEGORY DEBUG]', {
+          chosen: categorySlug,
+          rawCategories: (article as any)?.categories ?? (article as any)?.categoryUri ?? null
+        })
         categoryStats[categorySlug] = (categoryStats[categorySlug] || 0) + 1
 
         console.log(`Processing: ${article.title} [Category: ${categorySlug}]`)
 
         // Get category ID
-        const categoryId = await getCategoryId(categorySlug)
+        let categoryId = await getCategoryId(categorySlug)
+        if (!categoryId) {
+          // fallback to daily-highlights if mapping not present
+          categorySlug = 'daily-highlights'
+          categoryId = await getCategoryId('daily-highlights')
+        }
         if (!categoryId) {
           console.log(`[DEBUG] SKIP: missing category "${categorySlug}" for article:`, article.title)
           skipStats.missing_category++
