@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
@@ -60,7 +61,12 @@ export default function Header() {
     <>
       <header className="site-header">
         <div className="logo">
-          <Link href="/">NewsTodayForYou</Link>
+          <Link href="/" aria-label="NewsTodayForYou home">
+            <div className="logo-inner">
+              <Image src="/logo.svg" alt="NewsTodayForYou" width={32} height={32} />
+              <span>NewsTodayForYou</span>
+            </div>
+          </Link>
         </div>
         <button
           type="button"

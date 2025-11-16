@@ -101,35 +101,31 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
     return (
       <article>
         <h1>{post.title}</h1>
-        {post.image_url ? (
-          <img src={post.image_url} alt={post.title} style={{ maxWidth: '100%', height: 'auto', margin: '12px 0' }} />
-        ) : null}
         {cat && cat?.slug && cat?.name ? (
-          <div style={{ color: '#64748b', fontSize: '13px', marginBottom: '8px' }}>
+          <div style={{ color: '#64748b', fontSize: '14px', marginBottom: '12px' }}>
             <span>Category: </span>
-            <Link href={`/category/${cat.slug}`}>{cat.name}</Link>
+            <Link href={`/category/${cat.slug}`} style={{ color: '#1d4ed8', textDecoration: 'none' }}>
+              {cat.name}
+            </Link>
           </div>
         ) : null}
-        <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
+        {post.image_url ? (
+          <img src={post.image_url} alt={post.title} />
+        ) : null}
+        <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '32px' }}>
           <em>{new Date(post.created_at).toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'long', 
             day: 'numeric' 
           })}</em>
+          {post.source_name && (
+            <span style={{ marginLeft: '12px' }}>• {post.source_name}</span>
+          )}
         </p>
         <div dangerouslySetInnerHTML={{ __html: formattedBody }} />
-        <div style={{ marginTop: 24 }}>
-          <div id="ad-in-1" />
+        <div style={{ marginTop: 48, marginBottom: 32 }}>
+          <div id="ad-in-1" style={{ minHeight: '250px', padding: '16px', border: '1px solid var(--border)', borderRadius: '12px' }} />
         </div>
-        {post.source_name && (
-          <div style={{
-            fontSize: '11px',
-            opacity: 0.45,
-            marginTop: '28px'
-          }}>
-            Source: {post.source_name}
-          </div>
-        )}
       </article>
     )
   } catch (error) {
