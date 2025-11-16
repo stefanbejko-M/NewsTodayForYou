@@ -54,6 +54,10 @@ interface EventRegistryArticle {
   }
   dateTime: string
   url: string
+  // some feeds may include an image url under different keys
+  image?: string | null
+  imageUrl?: string | null
+  image_url?: string | null
 }
 
 interface AIRewriteResult {
@@ -196,6 +200,7 @@ async function fetchFromEventRegistry(): Promise<EventRegistryArticle[]> {
     apiKey: apiKey,
     forceMaxDataTimeWindow: 31,
     lang: 'eng',
+    includeArticleImage: true,
     categoryUri: [
       'dmoz/Society/People/Celebrity',
       'dmoz/Society/Politics',
@@ -227,6 +232,59 @@ async function fetchFromEventRegistry(): Promise<EventRegistryArticle[]> {
     console.error('Error fetching from Event Registry:', error)
     return []
   }
+}
+
+// Ensure the storage bucket for post images exists (best-effort)
+async function ensurePostImagesBucket() {
+  try {
+    const supabase = getSupabaseClient()
+    await (supabase as any).storage.createBucket('post-images', { public: true })
+  } catch (_e) {
+    // ignore if already exists or insufficient permissions
+  }
+}
+
+async function uploadImageToStorage(fileName: string, data: Uint8Array): Promise<string | null> {
+  const supabase = getSupabaseClient()
+  await ensurePostImagesBucket()
+  const { data: uploadRes, error } = await (supabase as any).storage.from('post-images').upload(`post-images/${fileName}`, data, {
+    upsert: true,
+    contentType: 'image/png'
+  })
+  if (error) {
+    console.error('[ERROR] Uploading image to storage failed:', error)
+    return null
+  }
+  const { data: publicUrl } = (supabase as any).storage.from('post-images').getPublicUrl(`post-images/${fileName}`)
+  return publicUrl?.publicUrl ?? null
+}
+
+async function generateImageUrlForArticle(title: string): Promise<string | null> {
+  try {
+    const openai = getOpenAIClient() as any
+    const prompt = `Realistic news photo: ${title}`
+    const img = await openai.images.generate({
+      model: 'gpt-image-1',
+      prompt,
+      size: '1024x576'
+    })
+    const b64 = img?.data?.[0]?.b64_json
+    if (!b64) return null
+    const buffer = Buffer.from(b64, 'base64')
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`
+    return await uploadImageToStorage(safeName, buffer)
+  } catch (e) {
+    console.error('[ERROR] Image generation failed:', e)
+    return null
+  }
+}
+
+async function resolveImageUrl(article: EventRegistryArticle, rewritten: AIRewriteResult): Promise<string | null> {
+  const fromSource = (article.image_url || article.imageUrl || article.image || '').trim?.() ?? ''
+  if (fromSource) {
+    return fromSource
+  }
+  return await generateImageUrlForArticle(rewritten.new_title || article.title)
 }
 
 // Helper: Rewrite article using OpenAI
@@ -317,7 +375,8 @@ Return ONLY valid JSON with this exact structure:
 // Helper: Insert article into Supabase
 async function insertArticle(
   article: AIRewriteResult, 
-  categoryId: number | null
+  categoryId: number | null,
+  imageUrl?: string | null
 ): Promise<boolean | 'slug_exists'> {
   try {
     // Check if slug already exists
@@ -337,6 +396,7 @@ async function insertArticle(
         source_url: '',
         category_id: categoryId,
         created_at: new Date().toISOString(),
+        image_url: imageUrl ?? null,
       },
     ])
 
@@ -471,6 +531,14 @@ export async function GET(request: NextRequest) {
         // Increment attempted counter after successful OpenAI response
         attempted++
 
+        // Resolve image URL (prefer source image, else generate via AI)
+        let imageUrl: string | null = null
+        try {
+          imageUrl = await resolveImageUrl(article, rewritten)
+        } catch (e) {
+          console.error('[ERROR] resolveImageUrl failed:', e)
+        }
+
         if (isDryRun) {
           // Dry run mode: just log what would be inserted
           dryRunResults.push({
@@ -479,13 +547,14 @@ export async function GET(request: NextRequest) {
             category: categorySlug,
             category_id: categoryId,
             source_name: sourceName,
+            image_url: imageUrl ?? null,
             content_preview: rewritten.new_content.substring(0, 100) + '...'
           })
           console.log(`[DRY RUN] Would insert: ${rewritten.new_title} (${categorySlug})`)
           inserted++
         } else {
           // Live mode: insert into database
-          const insertResult = await insertArticle(rewritten, categoryId)
+          const insertResult = await insertArticle(rewritten, categoryId, imageUrl)
           if (insertResult === true) {
             inserted++
             console.log('[DEBUG] INSERT OK:', rewritten.new_slug)

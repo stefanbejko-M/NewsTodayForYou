@@ -10,6 +10,7 @@ type Row = {
   source_name: string | null
   body?: string | null
   excerpt?: string | null
+  image_url?: string | null
 }
 
 export default async function Home() {
@@ -31,7 +32,7 @@ export default async function Home() {
       // Use .gte on created_at to filter to the last 24 hours
       return client
         .from('post')
-        .select('title, slug, created_at, source_name, body, excerpt')
+        .select('title, slug, created_at, source_name, body, excerpt, image_url')
         .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(20)
@@ -64,7 +65,8 @@ export default async function Home() {
         title: typeof p.title === 'string' ? p.title : 'Untitled',
         slug: p.slug!,
         source_name: typeof p.source_name === 'string' ? p.source_name : null,
-        excerpt: typeof p.excerpt === 'string' ? p.excerpt : (typeof p.body === 'string' ? p.body.slice(0, 200) : '')
+        excerpt: typeof p.excerpt === 'string' ? p.excerpt : (typeof p.body === 'string' ? p.body.slice(0, 200) : ''),
+        image_url: (p as any).image_url && typeof (p as any).image_url === 'string' ? (p as any).image_url as string : null
       }))
 
     return (
@@ -78,6 +80,9 @@ export default async function Home() {
           <ul>
             {validPosts.map((p) => (
               <li key={p.slug}>
+                {p.image_url ? (
+                  <img src={p.image_url} alt={p.title || ''} style={{ maxWidth: '100%', height: 'auto', display: 'block', marginBottom: 8 }} />
+                ) : null}
                 <Link href={`/news/${p.slug}`}>{p.title}</Link>
                 {p.source_name && (
                   <>

@@ -11,6 +11,7 @@ type Post = {
   created_at: string
   source_name: string | null
   views?: number | null
+  image_url?: string | null
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
@@ -53,7 +54,7 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
     
     const { data: post, error } = await client
       .from('post')
-      .select('id, title, slug, body, excerpt, created_at, source_name, views')
+      .select('id, title, slug, body, excerpt, created_at, source_name, views, image_url')
       .eq('slug', params.slug)
       .maybeSingle()
 
@@ -87,6 +88,9 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
     return (
       <article>
         <h1>{post.title}</h1>
+        {post.image_url ? (
+          <img src={post.image_url} alt={post.title} style={{ maxWidth: '100%', height: 'auto', margin: '12px 0' }} />
+        ) : null}
         <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
           <em>{new Date(post.created_at).toLocaleDateString('en-US', { 
             year: 'numeric', 
