@@ -52,7 +52,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
       .select('title, slug, created_at, source_name, body, excerpt')
       .eq('category_id', categoryData.id)
       .order('created_at', { ascending: false })
-      .limit(20)
+      .limit(30)
     
     if (error) {
       let errorMsg = 'Unknown error'

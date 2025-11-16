@@ -10,6 +10,7 @@ type Row = {
   source_name: string | null
   body?: string | null
   excerpt?: string | null
+  views?: number | null
 }
 
 export default async function Featured() {
@@ -24,10 +25,14 @@ export default async function Featured() {
 
     const client = createClient(supabaseUrl, supabaseKey)
     
-    // Fetch featured posts (you can add a featured flag or use a different query)
+    // Trending posts: last 6 hours, ordered by views desc (then created_at desc)
+    const since = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
+
     const { data, error } = await client
       .from('post')
-      .select('title, slug, created_at, source_name, body, excerpt')
+      .select('title, slug, created_at, source_name, body, excerpt, views')
+      .gte('created_at', since)
+      .order('views', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(20)
     
@@ -63,10 +68,10 @@ export default async function Featured() {
 
     return (
       <div>
-        <h1>Featured</h1>
+        <h1>Trending</h1>
         {validPosts.length === 0 ? (
           <p style={{ color: '#666', padding: '20px 0' }}>
-            No featured articles yet. Check back soon!
+            No trending articles yet. Check back soon!
           </p>
         ) : (
           <ul>

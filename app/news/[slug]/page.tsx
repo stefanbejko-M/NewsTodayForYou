@@ -3,12 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 export const revalidate = 0
 
 type Post = {
+  id: number
   title: string
   slug: string
   body: string
   excerpt?: string
   created_at: string
   source_name: string | null
+  views?: number | null
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
@@ -51,12 +53,24 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
     
     const { data: post, error } = await client
       .from('post')
-      .select('*')
+      .select('id, title, slug, body, excerpt, created_at, source_name, views')
       .eq('slug', params.slug)
       .maybeSingle()
 
     if (error || !post) {
       return <div>Article not found</div>
+    }
+
+    // Increment views (non-blocking, best-effort)
+    try {
+      const currentViews = typeof post.views === 'number' ? post.views : 0
+      await client
+        .from('post')
+        .update({ views: currentViews + 1 })
+        .eq('id', post.id)
+    } catch (e) {
+      // Do not block rendering if increment fails
+      console.error('Failed to increment views', e)
     }
 
     // Convert markdown headings to HTML
