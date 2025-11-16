@@ -42,11 +42,11 @@ export default async function CategoryPage({ params }: { params: { slug: string 
       return <div>Failed to load posts.</div>
     }
 
-    if (!categoryData) {
+    if (!categoryData || !categoryData.id) {
       return <div>Category not found.</div>
     }
 
-    // Fetch posts for this category
+    // Fetch posts for this category - ONLY posts with matching category_id
     const { data, error } = await client
       .from('post')
       .select('title, slug, created_at, source_name, body, excerpt')
@@ -97,8 +97,10 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           <ul>
             {validPosts.map((p) => (
               <li key={p.slug}>
-                <Link href={`/news/${p.slug}`}>{p.title}</Link>{' '}
-                <small>({p.source_name ?? 'Original'})</small>
+                <Link href={`/news/${p.slug}`}>{p.title}</Link>
+                {p.source_name && (
+                  <> <small>({p.source_name})</small></>
+                )}
               </li>
             ))}
           </ul>

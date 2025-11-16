@@ -72,8 +72,10 @@ export default async function Featured() {
           <ul>
             {validPosts.map((p) => (
               <li key={p.slug}>
-                <Link href={`/news/${p.slug}`}>{p.title}</Link>{' '}
-                <small>({p.source_name ?? 'Original'})</small>
+                <Link href={`/news/${p.slug}`}>{p.title}</Link>
+                {p.source_name && (
+                  <> <small>({p.source_name})</small></>
+                )}
               </li>
             ))}
           </ul>
