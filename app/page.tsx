@@ -23,12 +23,19 @@ export default async function Home() {
     }
 
     const client = createClient(supabaseUrl, supabaseKey)
-    
-    const { data, error } = await client
-      .from('post')
-      .select('title, slug, created_at, source_name, body, excerpt')
-      .order('created_at', { ascending: false })
-      .limit(20)
+
+    // Last 24 hours: only show fresh news on the homepage
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+    const { data, error } = await (async () => {
+      // Use .gte on created_at to filter to the last 24 hours
+      return client
+        .from('post')
+        .select('title, slug, created_at, source_name, body, excerpt')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(20)
+    })()
     
     if (error) {
       let errorMsg = 'Unknown error'
@@ -73,7 +80,10 @@ export default async function Home() {
               <li key={p.slug}>
                 <Link href={`/news/${p.slug}`}>{p.title}</Link>
                 {p.source_name && (
-                  <> <small>({p.source_name})</small></>
+                  <>
+                    {' '}
+                    <small>({p.source_name})</small>
+                  </>
                 )}
               </li>
             ))}
