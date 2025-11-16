@@ -7,6 +7,7 @@ export const revalidate = 0
 // Note: keep existing fields; add optional image_url for thumbnail rendering
 
 type Row = { 
+  id?: number | null
   title: string | null
   slug: string | null
   created_at: string | null
@@ -31,15 +32,12 @@ export default async function Home() {
     // Last 24 hours: only show fresh news on the homepage
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
-    const { data, error } = await (async () => {
-      // Use .gte on created_at to filter to the last 24 hours
-      return client
-        .from('post')
-        .select('title, slug, created_at, source_name, body, excerpt, image_url')
-        .gte('created_at', since)
-        .order('created_at', { ascending: false })
-        .limit(20)
-    })()
+    const { data, error } = await client
+      .from('post')
+      .select('id, title, slug, created_at, source_name, body, excerpt, image_url')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(20)
     
     if (error) {
       let errorMsg = 'Unknown error'
@@ -48,8 +46,15 @@ export default async function Home() {
       } catch {
         errorMsg = String(error)
       }
-      console.error('[PAGE ERROR]', errorMsg)
-      return <div>Failed to load posts.</div>
+      console.error('[HOME PAGE ERROR]', error)
+      return (
+        <div>
+          <p>Failed to load posts.</p>
+          <pre style={{ fontSize: '12px', color: '#999', whiteSpace: 'pre-wrap' }}>
+            {errorMsg}
+          </pre>
+        </div>
+      )
     }
 
     // Ensure data is an array
