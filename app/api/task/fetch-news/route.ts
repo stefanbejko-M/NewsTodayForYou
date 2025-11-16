@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
+import { getFinalCategorySlug } from '../../../../lib/categoryClassifier'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -502,32 +503,6 @@ export async function GET(request: NextRequest) {
     for (const article of articlesToProcess) {
       try {
         const sourceName = article.source?.title || 'Unknown Source'
-        // Prefer deterministic category from Event Registry, fallback to title/source keyword mapping
-        let categorySlug = getCategorySlugFromArticle(article)
-        if (!categorySlug || categorySlug === 'daily-highlights') {
-          const fromTitle = detectCategory(article.title, sourceName)
-          categorySlug = (fromTitle as any) || 'daily-highlights'
-        }
-        console.log('[CATEGORY DEBUG]', {
-          chosen: categorySlug,
-          rawCategories: (article as any)?.categories ?? (article as any)?.categoryUri ?? null
-        })
-        categoryStats[categorySlug] = (categoryStats[categorySlug] || 0) + 1
-
-        console.log(`Processing: ${article.title} [Category: ${categorySlug}]`)
-
-        // Get category ID
-        let categoryId = await getCategoryId(categorySlug)
-        if (!categoryId) {
-          // fallback to daily-highlights if mapping not present
-          categorySlug = 'daily-highlights'
-          categoryId = await getCategoryId('daily-highlights')
-        }
-        if (!categoryId) {
-          console.log(`[DEBUG] SKIP: missing category "${categorySlug}" for article:`, article.title)
-          skipStats.missing_category++
-          continue
-        }
 
         // Log before calling OpenAI
         console.log('[DEBUG] REWRITE START:', article.title)
@@ -570,6 +545,32 @@ export async function GET(request: NextRequest) {
 
         // Increment attempted counter after successful OpenAI response
         attempted++
+
+        // Determine final category via deterministic ER + keyword fallback
+        let categorySlug = getFinalCategorySlug(
+          article,
+          typeof rewritten.new_title === 'string' ? rewritten.new_title : '',
+          typeof rewritten.new_content === 'string' ? rewritten.new_content : '',
+          sourceName
+        )
+        // Track stats
+        categoryStats[categorySlug] = (categoryStats[categorySlug] || 0) + 1
+
+        // Resolve category id with fallback to daily-highlights if missing
+        let categoryId = await getCategoryId(categorySlug)
+        if (!categoryId) {
+          console.warn('[CATEGORY DEBUG] fallback to daily-highlights for:', {
+            title: rewritten.new_title,
+            chosen: categorySlug
+          })
+          categorySlug = 'daily-highlights'
+          categoryId = await getCategoryId('daily-highlights')
+        }
+        if (!categoryId) {
+          console.error('[ERROR] No valid category_id (even after fallback). Skipping:', rewritten.new_title)
+          skipStats.missing_category++
+          continue
+        }
 
         // Resolve image URL (prefer source image, else generate via AI)
         let imageUrl: string | null = null

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import OpenAI from 'openai'
+import { getFinalCategorySlug } from '../lib/categoryClassifier'
 import dotenv from 'dotenv'
 
 // Load environment variables from .env.local and .env
@@ -23,7 +23,7 @@ const CATEGORY_IDS: Record<string, number> = {
 }
 
 // Valid category IDs
-const VALID_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]
+const VALID_TYPES = [1, 2, 3, 4, 5, 6]
 
 interface Post {
   id: number
@@ -35,88 +35,19 @@ interface Post {
 }
 
 /**
- * Classify a post using OpenAI
+ * Classify a post using shared deterministic + keyword-based logic
  */
 async function classifyPost(
-  openai: OpenAI,
   title: string | null,
   slug: string | null,
   sourceName: string | null,
   body: string | null
 ): Promise<string> {
-  const titleText = title || 'Untitled'
-  const slugText = slug || ''
-  const sourceText = sourceName || 'Unknown Source'
-  const bodyText = body ? body.substring(0, 400) : ''
-
-  const systemPrompt = `You are an expert news classifier. Classify the following news article into ONE of these categories:
-
-1. celebrity
-2. politics
-3. ai-news
-4. daily-highlights
-5. sports
-6. games
-
-RULES:
-- Choose ONLY one category.
-- Think carefully about keywords, context, and topic.
-- Do NOT classify random news as ai-news unless it's truly about artificial intelligence.
-- Politics includes government, elections, policy, world leaders.
-- Sports includes any competition, score, team, athlete, injury, transfer, match.
-- Games includes gaming, esports, video games, Playstation, Xbox, Nintendo.
-- Celebrity includes actors, musicians, influencers, scandals, public figures.
-- Daily-highlights is for general news that doesn't fit other categories.
-- If unclear → default to daily-highlights.
-
-Examples:
-- "Biden signs new immigration bill" → politics
-- "Lionel Messi scores winning goal" → sports
-- "Taylor Swift releases new album" → celebrity
-- "Nvidia releases new AI chip" → ai-news
-- "Playstation 6 leaked images go viral" → games
-- "Earthquake hits Japan, thousands evacuated" → daily-highlights
-
-Return ONLY the slug of the category: celebrity, politics, ai-news, daily-highlights, sports, games.`
-
-  const userPrompt = `Title: ${titleText}
-Source: ${sourceText}
-Body: ${bodyText}
-
-Category:`
-
-  try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        {
-          role: 'user',
-          content: userPrompt
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 20
-    })
-
-    const categorySlug = completion.choices[0]?.message?.content?.trim().toLowerCase() || 'daily-highlights'
-    
-    // Validate the category slug
-    if (categorySlug in CATEGORY_IDS) {
-      return categorySlug
-    }
-    
-    // If invalid, default to daily-highlights
-    console.warn(`Invalid category "${categorySlug}" returned, defaulting to "daily-highlights"`)
-    return 'daily-highlights'
-  } catch (error) {
-    console.error('Error classifying post:', error)
-    // Default to daily-highlights on error
-    return 'daily-highlights'
-  }
+  const titleText = title || 'Unknown'
+  const bodyText = body || ''
+  const sourceText = sourceName || null
+  const slugResolved = getFinalCategorySlug({}, titleText, bodyText, sourceText)
+  return (slugResolved in CATEGORY_IDS) ? slugResolved : 'daily-highlights'
 }
 
 /**
@@ -127,7 +58,6 @@ async function main() {
     // Validate environment variables
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    const openaiKey = process.env.OPENAI_API_KEY
 
     const missingVars: string[] = []
     if (!supabaseUrl) {
@@ -135,9 +65,6 @@ async function main() {
     }
     if (!supabaseKey) {
       missingVars.push('SUPABASE_SERVICE_ROLE_KEY')
-    }
-    if (!openaiKey) {
-      missingVars.push('OPENAI_API_KEY')
     }
 
     if (missingVars.length > 0) {
@@ -150,7 +77,6 @@ async function main() {
 
     // Initialize clients
     const supabase = createClient(supabaseUrl!, supabaseKey!)
-    const openai = new OpenAI({ apiKey: openaiKey! })
 
     console.log('Fetching all posts for re-classification...')
 
@@ -170,9 +96,8 @@ async function main() {
 
     console.log(`Found ${posts.length} total posts`)
 
-    // Re-classify ALL posts using the improved prompt
+    // Re-classify ALL posts using shared logic
     const postsToCategorize = posts as Post[]
-
     console.log(`Will re-classify ${postsToCategorize.length} posts`)
 
     // Process each post
@@ -188,9 +113,7 @@ async function main() {
 
         console.log(`\nProcessing post ${post.id}: "${post.title || 'Untitled'}"`)
 
-        // Classify the post
         const categorySlug = await classifyPost(
-          openai,
           post.title,
           post.slug,
           post.source_name,
@@ -205,7 +128,11 @@ async function main() {
           continue
         }
 
-        // Update the post in Supabase
+        if (post.category_id === categoryId) {
+          console.log(`No change (already ${categorySlug}), skipping.`)
+          continue
+        }
+
         const { error: updateError } = await supabase
           .from('post')
           .update({ category_id: categoryId })
@@ -220,8 +147,7 @@ async function main() {
         console.log(`Post ${post.id} classified as ${categorySlug} (id=${categoryId})`)
         successCount++
 
-        // Add a small delay to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 300))
       } catch (error) {
         console.error(`Error processing post ${post.id}:`, error)
         errorCount++
@@ -229,9 +155,9 @@ async function main() {
     }
 
     console.log(`\n=== Summary ===`)
-    console.log(`Successfully categorized: ${successCount}`)
-    console.log(`Errors: ${errorCount}`)
-    console.log(`Total processed: ${postsToCategorize.length}`)
+    console.log('Successfully categorized:', successCount)
+    console.log('Errors:', errorCount)
+    console.log('Total processed:', postsToCategorize.length)
   } catch (error) {
     console.error('Fatal error:', error)
     process.exit(1)

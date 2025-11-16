@@ -140,6 +140,16 @@ a:hover{color:var(--accent)}
 .search-meta{ color: var(--muted); font-size: 12px }
 .search-empty{ padding: 12px; color: var(--muted) }
 
+/* Responsive top navigation */
+.site-header{ max-width:1200px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
+.nav-links{ display:flex; gap:16px; align-items:center; }
+.burger-button{ display:none; background:none; border:none; cursor:pointer; font-size:24px; line-height:1; }
+
+@media (max-width: 768px){
+  .nav-links{ display:none; flex-direction:column; align-items:flex-start; padding-top:8px; }
+  .nav-links.nav-open{ display:flex; }
+  .burger-button{ display:block; }
+}
 /* ---------- Layout helpers for content pages ---------- */
 .container{max-width:1200px;margin:0 auto;padding:0 16px}
 .layout-main{display:grid;grid-template-columns:1fr 320px;gap:24px}

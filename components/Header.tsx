@@ -8,6 +8,7 @@ export default function Header() {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [results, setResults] = useState<{ title: string; slug: string }[]>([])
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const params = useSearchParams()
 
@@ -58,21 +59,33 @@ export default function Header() {
   return (
     <>
       <header className="header">
-        <div className="brand">
-          <img src="/logo.svg" alt="logo" />
-          <span>NewsTodayForYou</span>
+        <div className="site-header">
+          <div className="brand">
+            <img src="/logo.svg" alt="logo" />
+            <span>NewsTodayForYou</span>
+          </div>
+          <div className="nav-container">
+            <button
+              type="button"
+              className="burger-button"
+              aria-label="Toggle navigation"
+              onClick={() => setIsMobileNavOpen(v => !v)}
+            >
+              &#9776;
+            </button>
+            <nav className={`nav-links ${isMobileNavOpen ? 'nav-open' : ''}`}>
+              <Link href="/">Home</Link>
+              <Link href="/search">Search</Link>
+              <Link href="/featured">Trending</Link>
+              <Link href="/category/celebrity">Celebrity</Link>
+              <Link href="/category/politics">Politics</Link>
+              <Link href="/category/ai-news">AI News</Link>
+              <Link href="/category/daily-highlights">Daily Highlights</Link>
+              <Link href="/category/sports">Sports</Link>
+              <Link href="/category/games">Games</Link>
+            </nav>
+          </div>
         </div>
-
-        <nav className="nav">
-          <Link href="/">Home</Link>
-          <button
-            onClick={() => setOpen(v => !v)}
-            className="nav-btn"
-          >
-            Search
-          </button>
-          <Link href="/featured">Trending</Link>
-        </nav>
       </header>
 
       {open && (

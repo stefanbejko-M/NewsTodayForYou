@@ -57,17 +57,32 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
     
     const { data, error } = await client
       .from('post')
-      .select('id, title, slug, body, excerpt, created_at, source_name, views, image_url, category:category_id ( slug, name )')
+      .select(`
+        id,
+        title,
+        slug,
+        body,
+        excerpt,
+        created_at,
+        source_name,
+        views,
+        image_url,
+        category:category_id (
+          slug,
+          name
+        )
+      `)
       .eq('slug', params.slug)
       .maybeSingle()
 
-    // Server-side log for diagnostics (will not render on client)
-    console.error('[NEWS PAGE DATA]', data, error)
-
-    const post = (Array.isArray(data) ? data[0] : data) as (Post | null);
-    if (!post) {
-      return <div>Article not found</div>
+    if (error) {
+      console.error('[NEWS PAGE ERROR]', error)
+      return <div>Failed to load posts.</div>
     }
+    if (!data) {
+      return <b>Article not found</b>
+    }
+    const post = data as Post
 
     // Increment views (non-blocking, best-effort)
     try {
