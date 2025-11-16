@@ -31,7 +31,7 @@ export default async function Featured() {
 
     const { data, error } = await client
       .from('post')
-      .select('title, slug, created_at, source_name, body, excerpt, views, image_url')
+      .select('*')
       .gte('created_at', since)
       .order('views', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })

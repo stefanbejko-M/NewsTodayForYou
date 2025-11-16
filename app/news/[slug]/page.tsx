@@ -54,33 +54,23 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
-    
+
+    console.log('[NEWS DEBUG] slug param =', params.slug)
+
     const { data, error } = await client
       .from('post')
-      .select(`
-        id,
-        title,
-        slug,
-        body,
-        excerpt,
-        created_at,
-        source_name,
-        views,
-        image_url,
-        category:category_id (
-          slug,
-          name
-        )
-      `)
+      .select('*')
       .eq('slug', params.slug)
       .maybeSingle()
 
+    console.log('[NEWS DEBUG] raw data =', data, 'error =', error)
+
     if (error) {
       console.error('[NEWS PAGE ERROR]', error)
-      return <div>Failed to load posts.</div>
+      return <div>Failed to load article.</div>
     }
     if (!data) {
-      return <b>Article not found</b>
+      return <div>Article not found</div>
     }
     const post = data as Post
 

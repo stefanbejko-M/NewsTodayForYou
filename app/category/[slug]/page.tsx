@@ -48,9 +48,9 @@ export default async function CategoryPage({ params }: { params: { slug: string 
     }
 
     // Fetch posts for this category - ONLY posts with matching category_id
-  const { data, error } = await client
+    const { data, error } = await client
       .from('post')
-      .select('title, slug, created_at, source_name, body, excerpt, image_url')
+      .select('*')
       .eq('category_id', categoryData.id)
       .order('created_at', { ascending: false })
       .limit(30)

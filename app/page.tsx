@@ -22,9 +22,27 @@ export default async function Home() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
+    console.log('[HOME DEBUG] env url?', !!supabaseUrl, 'key?', !!supabaseKey)
+
     if (!supabaseUrl || !supabaseKey) {
       console.error('[PAGE ERROR] Missing Supabase environment variables')
-      return <div>Failed to load posts.</div>
+
+      const missingVars =
+        [
+          !supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL' : null,
+          !supabaseKey ? 'NEXT_PUBLIC_SUPABASE_ANON_KEY' : null
+        ]
+          .filter(Boolean)
+          .join(', ') || 'none'
+
+      return (
+        <div>
+          <p>Failed to load posts (missing env vars).</p>
+          <pre style={{ fontSize: '12px', color: '#999', whiteSpace: 'pre-wrap' }}>
+            Missing: {missingVars}
+          </pre>
+        </div>
+      )
     }
 
     const client = createClient(supabaseUrl, supabaseKey)
@@ -34,7 +52,7 @@ export default async function Home() {
 
     const { data, error } = await client
       .from('post')
-      .select('id, title, slug, created_at, source_name, body, excerpt, image_url')
+      .select('*')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(20)
