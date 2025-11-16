@@ -49,19 +49,37 @@ async function classifyPost(
   const sourceText = sourceName || 'Unknown Source'
   const bodyText = body ? body.substring(0, 400) : ''
 
-  const prompt = `Classify the following news article into ONE of these categories:
-- celebrity
-- politics
-- ai-news
-- daily-highlights
-- sports
-- games
+  const systemPrompt = `You are an expert news classifier. Classify the following news article into ONE of these categories:
 
-If the category is unclear, use "daily-highlights".
+1. celebrity
+2. politics
+3. ai-news
+4. daily-highlights
+5. sports
+6. games
 
-Return ONLY the category slug (e.g., "politics" or "sports"), nothing else.
+RULES:
+- Choose ONLY one category.
+- Think carefully about keywords, context, and topic.
+- Do NOT classify random news as ai-news unless it's truly about artificial intelligence.
+- Politics includes government, elections, policy, world leaders.
+- Sports includes any competition, score, team, athlete, injury, transfer, match.
+- Games includes gaming, esports, video games, Playstation, Xbox, Nintendo.
+- Celebrity includes actors, musicians, influencers, scandals, public figures.
+- Daily-highlights is for general news that doesn't fit other categories.
+- If unclear → default to daily-highlights.
 
-Title: ${titleText}
+Examples:
+- "Biden signs new immigration bill" → politics
+- "Lionel Messi scores winning goal" → sports
+- "Taylor Swift releases new album" → celebrity
+- "Nvidia releases new AI chip" → ai-news
+- "Playstation 6 leaked images go viral" → games
+- "Earthquake hits Japan, thousands evacuated" → daily-highlights
+
+Return ONLY the slug of the category: celebrity, politics, ai-news, daily-highlights, sports, games.`
+
+  const userPrompt = `Title: ${titleText}
 Source: ${sourceText}
 Body: ${bodyText}
 
@@ -73,11 +91,11 @@ Category:`
       messages: [
         {
           role: 'system',
-          content: 'You are a news classification assistant. Return only the category slug.'
+          content: systemPrompt
         },
         {
           role: 'user',
-          content: prompt
+          content: userPrompt
         }
       ],
       temperature: 0.3,
@@ -134,7 +152,7 @@ async function main() {
     const supabase = createClient(supabaseUrl!, supabaseKey!)
     const openai = new OpenAI({ apiKey: openaiKey! })
 
-    console.log('Fetching posts with invalid or missing category_id...')
+    console.log('Fetching all posts for re-classification...')
 
     // Fetch all posts
     const { data: posts, error: fetchError } = await supabase
@@ -152,23 +170,10 @@ async function main() {
 
     console.log(`Found ${posts.length} total posts`)
 
-    // Filter posts that need categorization
-    const postsToCategorize = posts.filter((post: Post) => {
-      const categoryId = post.category_id
-      // Filter out posts with valid category_id (1-6)
-      if (categoryId && VALID_CATEGORY_IDS.includes(categoryId)) {
-        return false
-      }
-      // Include posts with null, undefined, 0, or invalid category_id
-      return true
-    }) as Post[]
+    // Re-classify ALL posts using the improved prompt
+    const postsToCategorize = posts as Post[]
 
-    console.log(`Found ${postsToCategorize.length} posts that need categorization`)
-
-    if (postsToCategorize.length === 0) {
-      console.log('All posts already have valid categories')
-      return
-    }
+    console.log(`Will re-classify ${postsToCategorize.length} posts`)
 
     // Process each post
     let successCount = 0
