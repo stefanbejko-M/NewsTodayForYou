@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import Link from 'next/link'
 
 export const revalidate = 0
 
@@ -12,6 +13,8 @@ type Post = {
   source_name: string | null
   views?: number | null
   image_url?: string | null
+  // Supabase nested relation may return object or array; use runtime guard
+  category?: any
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
@@ -54,7 +57,7 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
     
     const { data: post, error } = await client
       .from('post')
-      .select('id, title, slug, body, excerpt, created_at, source_name, views, image_url')
+      .select('id, title, slug, body, excerpt, created_at, source_name, views, image_url, category:category_id ( slug, name )')
       .eq('slug', params.slug)
       .maybeSingle()
 
@@ -84,12 +87,19 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
 
     const bodyContent = post.body || ''
     const formattedBody = `<p>${formatContent(bodyContent)}</p>`
+    const cat = Array.isArray((post as any).category) ? (post as any).category[0] : (post as any).category
 
     return (
       <article>
         <h1>{post.title}</h1>
         {post.image_url ? (
           <img src={post.image_url} alt={post.title} style={{ maxWidth: '100%', height: 'auto', margin: '12px 0' }} />
+        ) : null}
+        {cat && cat?.slug && cat?.name ? (
+          <div style={{ color: '#64748b', fontSize: '13px', marginBottom: '8px' }}>
+            <span>Category: </span>
+            <Link href={`/category/${cat.slug}`}>{cat.name}</Link>
+          </div>
         ) : null}
         <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
           <em>{new Date(post.created_at).toLocaleDateString('en-US', { 

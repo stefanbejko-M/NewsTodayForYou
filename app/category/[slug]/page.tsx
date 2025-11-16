@@ -83,7 +83,8 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         slug: p.slug!,
         source_name: typeof p.source_name === 'string' ? p.source_name : null,
         excerpt: typeof p.excerpt === 'string' ? p.excerpt : (typeof p.body === 'string' ? p.body.slice(0, 200) : ''),
-        image_url: (p as any).image_url && typeof (p as any).image_url === 'string' ? (p as any).image_url as string : null
+        image_url: (p as any).image_url && typeof (p as any).image_url === 'string' ? (p as any).image_url as string : null,
+        created_at: p.created_at || null
       }))
 
     const categoryName = categoryData.name || params.slug
@@ -96,16 +97,30 @@ export default async function CategoryPage({ params }: { params: { slug: string 
             No articles in this category yet. Check back soon!
           </p>
         ) : (
-          <ul>
+          <ul className="article-list">
             {validPosts.map((p) => (
-              <li key={p.slug}>
+              <li key={p.slug} className="article-card">
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.title || ''} style={{ maxWidth: '100%', height: 'auto', marginBottom: 8 }} />
+                  <a className="article-thumb" href={`/news/${p.slug}`}>
+                    <img className="article-image" src={p.image_url} alt={p.title || ''} />
+                  </a>
                 ) : null}
-                <Link href={`/news/${p.slug}`}>{p.title}</Link>
-                {p.source_name && (
-                  <> <small>({p.source_name})</small></>
-                )}
+                <div className="article-content">
+                  <h2 className="article-title">
+                    <Link href={`/news/${p.slug}`}>{p.title}</Link>
+                  </h2>
+                  {p.source_name && (
+                    <div className="article-meta"><small>{p.source_name}</small></div>
+                  )}
+                  {p.excerpt ? (
+                    <p className="article-excerpt">{p.excerpt}</p>
+                  ) : null}
+                  {p.created_at ? (
+                    <div className="article-meta">
+                      <small>{new Date(p.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</small>
+                    </div>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

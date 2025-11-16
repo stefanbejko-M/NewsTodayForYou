@@ -1,5 +1,6 @@
 import './globals.css'
 import Header from '../components/Header'
+import Footer from '../components/Footer'
 import Analytics from '../components/Analytics'
 
 export const dynamic = 'force-dynamic'
@@ -64,7 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </aside>
           </div>
 
-          <footer className="footer">© {new Date().getFullYear()} NewsTodayForYou — All rights reserved.</footer>
+          <Footer />
         </div>
       </body>
     </html>

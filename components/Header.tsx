@@ -1,24 +1,35 @@
 'use client'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const client = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { useSearchParams } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 
 export default function Header() {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [results, setResults] = useState<{ title: string; slug: string }[]>([])
   const panelRef = useRef<HTMLDivElement>(null)
+  const params = useSearchParams()
+
+  // Read query param on mount and auto-open dropdown if present
+  useEffect(() => {
+    const initial = params.get('q')
+    if (initial && !open) {
+      setQ(initial)
+      setOpen(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // авто-пребарување со debounce
   useEffect(() => {
     const t = setTimeout(async () => {
       if (!q.trim()) { setResults([]); return }
-      const { data } = await client
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      const { data } = await supabase
         .from('post')
         .select('title, slug')
         .ilike('title', `%${q.trim()}%`)
@@ -45,40 +56,55 @@ export default function Header() {
   }, [open])
 
   return (
-    <header className="header">
-      <div className="brand">
-        <img src="/logo.svg" alt="logo" />
-        <span>NewsTodayForYou</span>
-      </div>
+    <>
+      <header className="header">
+        <div className="brand">
+          <img src="/logo.svg" alt="logo" />
+          <span>NewsTodayForYou</span>
+        </div>
 
-      <nav className="nav">
-        <Link href="/">Home</Link>
-        <span role="button" tabIndex={0} onClick={() => setOpen((v) => !v)}>Search</span>
-        <Link href="/featured">Featured</Link>
-      </nav>
+        <nav className="nav">
+          <Link href="/">Home</Link>
+          <button
+            onClick={() => setOpen(v => !v)}
+            className="nav-btn"
+          >
+            Search
+          </button>
+          <Link href="/featured">Trending</Link>
+        </nav>
+      </header>
 
       {open && (
         <div className="search-panel" ref={panelRef}>
           <input
+            type="text"
             className="search-input"
+            placeholder="Search news… e.g. Trump"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Type to search… e.g. Trump"
             autoFocus
           />
-          <div className="search-results">
-            {q && results.length === 0 && (
-              <div className="search-empty">No results for “{q}”.</div>
-            )}
-            {results.map((p) => (
-              <Link key={p.slug} href={`/news/${p.slug}`} className="search-row" onClick={() => setOpen(false)}>
-                <div className="search-title">{p.title}</div>
-                <div className="search-meta">Open</div>
-              </Link>
-            ))}
-          </div>
+          {q.trim() && (
+            <div className="search-results">
+              {results.length > 0 ? (
+                results.map((r) => (
+                  <Link
+                    key={r.slug}
+                    href={`/news/${r.slug}`}
+                    className="search-row"
+                    onClick={() => setOpen(false)}
+                  >
+                    <span className="search-title">{r.title}</span>
+                  </Link>
+                ))
+              ) : (
+                <div className="search-empty">No results found</div>
+              )}
+            </div>
+          )}
         </div>
       )}
-    </header>
+    </>
   )
 }

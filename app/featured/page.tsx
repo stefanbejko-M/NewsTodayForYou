@@ -65,33 +65,48 @@ export default async function Featured() {
         slug: p.slug!,
         source_name: typeof p.source_name === 'string' ? p.source_name : null,
         excerpt: typeof p.excerpt === 'string' ? p.excerpt : (typeof p.body === 'string' ? p.body.slice(0, 200) : ''),
-        image_url: (p as any).image_url && typeof (p as any).image_url === 'string' ? (p as any).image_url as string : null
+        image_url: typeof (p as any).image_url === 'string' ? (p as any).image_url as string : null,
+        created_at: (p as any).created_at || null
       }))
 
-    return (
-      <div>
-        <h1>Trending</h1>
-        {validPosts.length === 0 ? (
-          <p style={{ color: '#666', padding: '20px 0' }}>
-            No trending articles yet. Check back soon!
-          </p>
-        ) : (
-          <ul>
-            {validPosts.map((p) => (
-              <li key={p.slug}>
-                {p.image_url ? (
-                  <img src={p.image_url} alt={p.title || ''} style={{ maxWidth: '100%', height: 'auto', marginBottom: 8 }} />
-                ) : null}
-                <Link href={`/news/${p.slug}`}>{p.title}</Link>
-                {p.source_name && (
-                  <> <small>({p.source_name})</small></>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    )
+      return (
+        <div>
+          <h1>Trending News</h1>
+          {validPosts.length === 0 ? (
+            <p style={{ color: '#666', padding: '20px 0' }}>
+              No trending articles yet. Check back soon!
+            </p>
+          ) : (
+            <ul className="article-list">
+              {validPosts.map((p) => (
+                <li key={p.slug} className="article-card">
+                  {p.image_url ? (
+                    <a className="article-thumb" href={`/news/${p.slug}`}>
+                      <img className="article-image" src={p.image_url} alt={p.title || ''} />
+                    </a>
+                  ) : null}
+                  <div className="article-content">
+                    <h2 className="article-title">
+                      <Link href={`/news/${p.slug}`}>{p.title}</Link>
+                    </h2>
+                    {p.source_name ? (
+                      <div className="article-meta"><small>{p.source_name}</small></div>
+                    ) : null}
+                    {p.excerpt ? (
+                      <p className="article-excerpt">{p.excerpt}</p>
+                    ) : null}
+                    {p.created_at ? (
+                      <div className="article-meta">
+                        <small>{new Date(p.created_at as any).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</small>
+                      </div>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     console.error('[PAGE ERROR]', errorMessage)
