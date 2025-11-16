@@ -61,10 +61,7 @@ export default function Header() {
       <header className="site-header">
         <div className="logo">
           <Link href="/" aria-label="NewsTodayForYou home">
-            <div className="logo-inner">
-              <img src="/logo.png" alt="NewsTodayForYou" className="logo-img" />
-              <span>NewsTodayForYou</span>
-            </div>
+            <img src="/logo.svg" alt="NewsTodayForYou" className="logo-img" />
           </Link>
         </div>
         <button

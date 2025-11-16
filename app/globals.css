@@ -179,23 +179,10 @@ article > div[dangerouslySetInnerHTML] h2{
   text-decoration: none;
   color: #111827;
 }
-.logo-inner{
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.logo-inner img{
-  flex-shrink: 0;
-}
 .logo-img{
   height: 36px;
   width: auto;
   display: inline-block;
-}
-.logo-inner span{
-  font-weight: 700;
-  font-size: 20px;
-  color: #111827;
 }
 .nav-links{
   margin-left: auto;
