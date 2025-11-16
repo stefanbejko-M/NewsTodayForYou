@@ -29,6 +29,12 @@ export const metadata = {
   title: { default: 'NewsTodayForYou', template: '%s · NewsTodayForYou' },
   description: 'Fast, legal, summarized breaking news for EN markets.',
   alternates: { canonical: '/' },
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon.png', sizes: '512x512', type: 'image/png' }
+    ]
+  },
   openGraph: {
     type: 'website',
     siteName: 'NewsTodayForYou',

@@ -63,7 +63,7 @@ export default function Header() {
         <div className="logo">
           <Link href="/" aria-label="NewsTodayForYou home">
             <div className="logo-inner">
-              <Image src="/logo.svg" alt="NewsTodayForYou" width={32} height={32} />
+              <Image src="/logo.png" alt="NewsTodayForYou" width={32} height={32} />
               <span>NewsTodayForYou</span>
             </div>
           </Link>
