@@ -59,14 +59,18 @@ export default function Header() {
   return (
     <>
       <header className="site-header">
-        <Link href="/" className="logo" aria-label="NewsTodayForYou home">
-          <img
-            src="/android-chrome-192x192.png"
-            alt="NewsTodayForYou logo"
-            className="logo-img"
-          />
-          <span className="logo-text">NewsTodayForYou</span>
-        </Link>
+        <div className="logo">
+          <Link href="/" aria-label="NewsTodayForYou home">
+            <span className="logo-inner">
+              <img
+                src="/logo-nt.svg"
+                alt="NewsTodayForYou logo"
+                className="logo-img"
+              />
+              <span className="logo-text">NewsTodayForYou</span>
+            </span>
+          </Link>
+        </div>
         <button
           type="button"
           className="burger-button"

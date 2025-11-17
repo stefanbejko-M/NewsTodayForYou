@@ -217,19 +217,23 @@ article > div[dangerouslySetInnerHTML] h2{
 .logo{
   display: flex;
   align-items: center;
-  gap: 8px;
+}
+.logo a{
   text-decoration: none;
+}
+.logo-inner{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .logo-img{
   height: 32px;
   width: 32px;
-  border-radius: 50%;
   display: inline-block;
-  object-fit: cover;
 }
 .logo-text{
-  font-weight: 700;
-  font-size: 20px;
+  font-weight: 800;
+  font-size: 18px;
   color: #111827;
 }
 .logo:hover .logo-text{
