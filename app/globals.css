@@ -117,6 +117,35 @@ article > div[dangerouslySetInnerHTML] h2{
 .footer-disclaimer p{
   margin: 0;
 }
+.footer-small{
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-top: 1rem;
+}
+.author-box{
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+.author-avatar{
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.author-box strong{
+  display: block;
+  margin-bottom: 4px;
+  color: #111827;
+}
+.author-box p{
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
 @media (max-width: 768px){
   .site-footer .footer-inner{flex-direction:column;align-items:flex-start;gap:16px}
   .site-footer .footer-nav{gap:12px}

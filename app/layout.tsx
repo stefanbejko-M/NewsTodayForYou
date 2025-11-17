@@ -27,8 +27,22 @@ function getMetadataBase(): URL {
 
 export const metadata: Metadata = {
   metadataBase: getMetadataBase(),
-  title: 'NewsTodayForYou',
-  description: 'NewsTodayForYou е агрегатор на најнови светски вести – политика, спорт, технологија, игри и повеќе, освежувани на секои 3 часа.',
+  title: {
+    default: 'NewsTodayForYou — Fresh News Every Few Hours',
+    template: '%s — NewsTodayForYou',
+  },
+  description: 'Breaking news, trending stories and real-time updates refreshed every few hours. Fast, clean and reliable news coverage.',
+  keywords: [
+    'news',
+    'breaking news',
+    'world news',
+    'politics',
+    'celebrity',
+    'AI news',
+    'sports',
+    'latest updates',
+    'daily highlights',
+  ],
   alternates: { canonical: '/' },
   icons: {
     icon: [
@@ -40,16 +54,27 @@ export const metadata: Metadata = {
   },
   manifest: '/site.webmanifest',
   openGraph: {
-    title: 'NewsTodayForYou',
-    description: 'Ваш прозорец кон светот – свежи вести, автоматски ажурирани.',
     type: 'website',
-    url: '/',
+    locale: 'en_US',
+    url: 'https://newstoday4u.com',
     siteName: 'NewsTodayForYou',
+    title: 'NewsTodayForYou — Fresh News Every Few Hours',
+    description: 'Breaking news, trending stories and real-time updates refreshed every few hours. Fast, clean and reliable news coverage.',
+    images: [
+      {
+        url: '/android-chrome-512x512.png',
+        width: 512,
+        height: 512,
+        alt: 'NewsTodayForYou',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NewsTodayForYou',
-    description: 'Ваш прозорец кон светот – свежи вести, автоматски ажурирани.',
+    site: '@NewsTodayForYou',
+    title: 'NewsTodayForYou — Fresh News Every Few Hours',
+    description: 'Breaking news, trending stories and real-time updates refreshed every few hours. Fast, clean and reliable news coverage.',
+    images: '/android-chrome-512x512.png',
   },
   robots: { index: true, follow: true },
   other: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION

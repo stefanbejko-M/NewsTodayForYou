@@ -139,7 +139,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
               <li key={p.slug} className="article-card">
                 {p.image_url ? (
                   <a className="article-thumb" href={`/news/${p.slug}`}>
-                    <img className="article-image" src={p.image_url} alt={p.title || ''} />
+                    <img className="article-image" src={p.image_url} alt={p.title || ''} loading="lazy" />
                   </a>
                 ) : null}
                 <div className="article-content">

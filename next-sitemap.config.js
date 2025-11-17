@@ -1,7 +1,8 @@
-/** @type {import('next-sitemap').IConfig} */
 module.exports = {
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+  siteUrl: 'https://newstoday4u.com',
   generateRobotsTxt: true,
+  sitemapSize: 5000,
   changefreq: 'hourly',
-  priority: 0.7,
+  priority: 0.9,
+  exclude: ['/api/*', '/admin/*'],
 };

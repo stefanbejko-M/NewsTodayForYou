@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
   const articleUrl = `${siteUrl}/news/${params.slug}`
-  const images = data?.image_url ? [data.image_url] : []
+  const images = data?.image_url ? [data.image_url] : ['/android-chrome-512x512.png']
 
   return {
     title,
@@ -54,14 +54,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description,
       url: articleUrl,
       type: 'article',
-      images: images.length > 0 ? images : undefined,
+      images: images,
       siteName: 'NewsTodayForYou',
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: images.length > 0 ? images : undefined,
+      images: data?.image_url || '/android-chrome-512x512.png',
     },
   }
 }
@@ -139,7 +139,8 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
           {post.image_url ? (
             <img 
               src={post.image_url} 
-              alt={post.title || 'News article image'} 
+              alt={post.title || 'News article image'}
+              loading="lazy"
             />
           ) : null}
           <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '32px' }}>
@@ -153,6 +154,13 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
             )}
           </p>
           <div dangerouslySetInnerHTML={{ __html: formattedBody }} />
+          <div className="author-box">
+            <img src="/android-chrome-192x192.png" alt="Author" className="author-avatar" />
+            <div>
+              <strong>NewsTodayForYou Editorial Team</strong>
+              <p>Our editorial team curates and refreshes news every few hours using trusted global sources.</p>
+            </div>
+          </div>
           <div style={{ marginTop: 48, marginBottom: 32 }}>
             <div id="ad-in-1" style={{ minHeight: '250px', padding: '16px', border: '1px solid var(--border)', borderRadius: '12px' }} />
           </div>
@@ -163,25 +171,22 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
             '@type': 'NewsArticle',
             headline: post.title || 'News article',
             description: post.excerpt || (typeof post.body === 'string' ? post.body.slice(0, 160) : ''),
-            image: post.image_url ? [post.image_url] : [],
+            image: post.image_url || `${siteUrl}/android-chrome-512x512.png`,
             datePublished: publishedDate,
             dateModified: modifiedDate,
             author: {
-              '@type': 'Organization',
-              name: 'NewsTodayForYou',
+              '@type': 'Person',
+              name: 'NewsTodayForYou Team',
             },
             publisher: {
               '@type': 'Organization',
               name: 'NewsTodayForYou',
               logo: {
                 '@type': 'ImageObject',
-                url: `${siteUrl}/android-chrome-192x192.png`,
+                url: `${siteUrl}/android-chrome-512x512.png`,
               },
             },
-            mainEntityOfPage: {
-              '@type': 'WebPage',
-              '@id': articleUrl,
-            },
+            mainEntityOfPage: articleUrl,
           })}
         </Script>
       </>

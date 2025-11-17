@@ -24,6 +24,10 @@ export default function Footer() {
             headlines and articles from external sources. We are not affiliated with the original
             publishers; all trademarks and content remain the property of their respective owners.
           </p>
+          <p className="footer-small">
+            NewsTodayForYou aggregates and refreshes news headlines every few hours from trusted global sources.
+            This site does not publish user-generated content; all articles originate from verified providers.
+          </p>
         </div>
       </div>
     </footer>
