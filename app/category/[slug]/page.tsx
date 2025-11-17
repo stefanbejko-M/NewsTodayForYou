@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   const categoryName = categoryData?.name || params.slug
   const title = `${categoryName} – NewsTodayForYou`
-  const description = `Последни вести од категоријата ${categoryName}. NewsTodayForYou агрегира најнови новости од доверливи извори.`
+  const description = `Latest articles in the ${categoryName} category. NewsTodayForYou refreshes these stories every few hours from trusted sources.`
 
   return {
     title,
@@ -127,8 +127,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
       <div>
         <h1>{categoryName}</h1>
         <p style={{ color: '#4b5563', marginBottom: '24px', maxWidth: '640px' }}>
-          Последни вести од категоријата {categoryName}. NewsTodayForYou ги освежува овие вести
-          на секои неколку часа.
+          Latest articles in the {categoryName} category. NewsTodayForYou refreshes these stories every few hours from trusted sources.
         </p>
         {validPosts.length === 0 ? (
           <p style={{ color: '#666', padding: '20px 0' }}>
