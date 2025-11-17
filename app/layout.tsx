@@ -2,6 +2,7 @@ import './globals.css'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import Analytics from '../components/Analytics'
+import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -95,12 +96,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <aside className="sidebar">
               <div className="side-title">Categories</div>
               <ul style={{listStyle:'none',padding:0,margin:0,lineHeight:'1.9'}}>
-                <li><a href="/?q=celebrity">Celebrity</a></li>
-                <li><a href="/?q=politics">Politics</a></li>
-                <li><a href="/?q=ai-news">AI News</a></li>
-                <li><a href="/?q=daily-highlights">Daily Highlights</a></li>
-                <li><a href="/?q=sports">Sports</a></li>
-                <li><a href="/?q=games">Games</a></li>
+                <li><Link href="/category/celebrity">Celebrity</Link></li>
+                <li><Link href="/category/politics">Politics</Link></li>
+                <li><Link href="/category/ai-news">AI News</Link></li>
+                <li><Link href="/category/daily-highlights">Daily Highlights</Link></li>
+                <li><Link href="/category/sports">Sports</Link></li>
+                <li><Link href="/category/games">Games</Link></li>
               </ul>
 
               <div className="side-title" style={{marginTop:18}}>Ad</div>

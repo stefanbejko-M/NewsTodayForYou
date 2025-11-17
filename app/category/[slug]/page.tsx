@@ -81,13 +81,13 @@ export default async function CategoryPage({ params }: { params: { slug: string 
       return <div>Category not found.</div>
     }
 
-    // Fetch posts for this category - ONLY posts with matching category_id
+    // Fetch posts for this category - ONLY posts with matching category_id (no time filter)
     const { data, error } = await client
       .from('post')
       .select('*')
       .eq('category_id', categoryData.id)
       .order('created_at', { ascending: false })
-      .limit(30)
+      .limit(50)
     
     if (error) {
       let errorMsg = 'Unknown error'
@@ -131,7 +131,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         </p>
         {validPosts.length === 0 ? (
           <p style={{ color: '#666', padding: '20px 0' }}>
-            No articles in this category yet. Check back soon!
+            No articles in this category yet. Please check back soon.
           </p>
         ) : (
           <ul className="article-list">

@@ -155,7 +155,7 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
           </p>
           <div dangerouslySetInnerHTML={{ __html: formattedBody }} />
           <div className="author-box">
-            <img src="/android-chrome-192x192.png" alt="Author" className="author-avatar" />
+            <img src="/logo-nt.svg" alt="Author" className="author-avatar" />
             <div>
               <strong>NewsTodayForYou Editorial Team</strong>
               <p>Our editorial team curates and refreshes news every few hours using trusted global sources.</p>

@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, usePathname } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 
 export default function Header() {
@@ -11,11 +11,12 @@ export default function Header() {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const params = useSearchParams()
+  const pathname = usePathname()
 
-  // Read query param on mount and auto-open dropdown if present
+  // Read query param on mount and auto-open dropdown if present (only if on /search page)
   useEffect(() => {
     const initial = params.get('q')
-    if (initial && !open) {
+    if (initial && !open && pathname === '/search') {
       setQ(initial)
       setOpen(true)
     }
@@ -24,6 +25,10 @@ export default function Header() {
 
   // авто-пребарување со debounce
   useEffect(() => {
+    if (q.trim().length < 3) {
+      setResults([])
+      return
+    }
     const t = setTimeout(async () => {
       if (!q.trim()) { setResults([]); return }
       const supabase = createBrowserClient(
@@ -34,7 +39,8 @@ export default function Header() {
         .from('post')
         .select('title, slug')
         .ilike('title', `%${q.trim()}%`)
-        .limit(20)
+        .order('created_at', { ascending: false })
+        .limit(10)
       setResults(data || [])
     }, 300)
     return () => clearTimeout(t)
@@ -83,13 +89,19 @@ export default function Header() {
           <Link href="/">Home</Link>
           <Link href="/search">Search</Link>
           <Link href="/featured">Trending</Link>
-          <Link href="/category/celebrity">Celebrity</Link>
-          <Link href="/category/politics">Politics</Link>
-          <Link href="/category/ai-news">AI News</Link>
-          <Link href="/category/daily-highlights">Daily Highlights</Link>
-          <Link href="/category/sports">Sports</Link>
-          <Link href="/category/games">Games</Link>
         </nav>
+        <div className={`mobile-nav ${isMobileNavOpen ? 'open' : ''}`}>
+          <Link href="/" onClick={() => setIsMobileNavOpen(false)}>Home</Link>
+          <Link href="/search" onClick={() => setIsMobileNavOpen(false)}>Search</Link>
+          <Link href="/featured" onClick={() => setIsMobileNavOpen(false)}>Trending</Link>
+          <div className="mobile-nav-divider" />
+          <Link href="/category/celebrity" onClick={() => setIsMobileNavOpen(false)}>Celebrity</Link>
+          <Link href="/category/politics" onClick={() => setIsMobileNavOpen(false)}>Politics</Link>
+          <Link href="/category/ai-news" onClick={() => setIsMobileNavOpen(false)}>AI News</Link>
+          <Link href="/category/daily-highlights" onClick={() => setIsMobileNavOpen(false)}>Daily Highlights</Link>
+          <Link href="/category/sports" onClick={() => setIsMobileNavOpen(false)}>Sports</Link>
+          <Link href="/category/games" onClick={() => setIsMobileNavOpen(false)}>Games</Link>
+        </div>
       </header>
 
       {open && (

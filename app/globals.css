@@ -130,11 +130,12 @@ article > div[dangerouslySetInnerHTML] h2{
   border-top: 1px solid #e5e7eb;
 }
 .author-avatar{
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
   flex-shrink: 0;
+  background: #f9fafb;
 }
 .author-box strong{
   display: block;
@@ -206,6 +207,7 @@ article > div[dangerouslySetInnerHTML] h2{
 
 /* Responsive top navigation */
 .site-header{
+  position: relative;
   max-width: 1200px;
   margin: 0 auto;
   padding: 12px 16px;
@@ -230,6 +232,7 @@ article > div[dangerouslySetInnerHTML] h2{
   height: 32px;
   width: 32px;
   display: inline-block;
+  object-fit: contain;
 }
 .logo-text{
   font-weight: 800;
@@ -273,17 +276,39 @@ article > div[dangerouslySetInnerHTML] h2{
   margin-left: auto;
 }
 
+.mobile-nav{
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  z-index: 40;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+.mobile-nav.open{
+  display: block;
+}
+.mobile-nav a{
+  display: block;
+  padding: 8px 0;
+  text-decoration: none;
+  color: #111827;
+  font-weight: 500;
+}
+.mobile-nav a:hover{
+  color: #374151;
+}
+.mobile-nav-divider{
+  height: 1px;
+  background: #e5e7eb;
+  margin: 8px 0;
+}
 @media (max-width: 768px){
   .nav-links{
     display: none;
-    flex-direction: column;
-    align-items: flex-start;
-    padding-top: 8px;
-    background: white;
-    box-shadow: 0 4px 12px rgba(0,0,0,.08);
-  }
-  .nav-links.nav-open{
-    display: flex;
   }
   .burger-button{
     display: block;
