@@ -18,6 +18,13 @@ export default function Footer() {
             <Link href="/contact">Contact</Link>
           </nav>
         </div>
+        <div className="footer-disclaimer">
+          <p>
+            NewsTodayForYou is a news aggregator. We automatically collect and transform news
+            headlines and articles from external sources. We are not affiliated with the original
+            publishers; all trademarks and content remain the property of their respective owners.
+          </p>
+        </div>
       </div>
     </footer>
   )

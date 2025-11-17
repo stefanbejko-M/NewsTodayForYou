@@ -98,8 +98,8 @@ export default async function Home() {
         <section className="home-intro">
           <h1>Latest News</h1>
           <p>
-            NewsTodayForYou е агрегатор на вести што автоматски собира и преработува најнови
-            новости од доверливи извори. Вестите се освежуваат на секои неколку часа за да останете во тек.
+            Welcome to NewsTodayForYou – a fast, clean overview of the latest stories from around
+            the world, updated several times per day.
           </p>
         </section>
         {validPosts.length === 0 ? (

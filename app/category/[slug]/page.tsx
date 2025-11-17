@@ -127,7 +127,8 @@ export default async function CategoryPage({ params }: { params: { slug: string 
       <div>
         <h1>{categoryName}</h1>
         <p style={{ color: '#4b5563', marginBottom: '24px', maxWidth: '640px' }}>
-          Последни вести од категоријата {categoryName}. NewsTodayForYou агрегира најнови новости од доверливи извори и ги освежува на секои неколку часа.
+          Последни вести од категоријата {categoryName}. NewsTodayForYou ги освежува овие вести
+          на секои неколку часа.
         </p>
         {validPosts.length === 0 ? (
           <p style={{ color: '#666', padding: '20px 0' }}>
