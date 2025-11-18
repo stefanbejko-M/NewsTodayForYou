@@ -79,9 +79,11 @@ export const metadata: Metadata = {
     images: '/android-chrome-512x512.png',
   },
   robots: { index: true, follow: true },
-  other: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
-    ? { 'google-site-verification': process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
-    : undefined,
+  other: {
+    'google-site-verification':
+      process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+      'uPHG7MNMW6BiqE9QjyVfMGEsVFygeyrx9Ac-Sp_H8WI',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
