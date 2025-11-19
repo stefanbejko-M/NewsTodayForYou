@@ -87,9 +87,27 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Organization schema for Google News/Discover
+  const orgSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsMediaOrganization',
+    name: 'NewsTodayForYou',
+    url: 'https://newstoday4u.com/',
+    logo: 'https://newstoday4u.com/logo-nt.svg',
+    sameAs: [
+      'https://www.facebook.com/newstoday4u',
+      'https://www.instagram.com/newstoday4u',
+      'https://x.com/newstoday4u',
+    ],
+  }
+
   return (
     <html lang="en">
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+        />
         <Analytics />
         <div className="wrapper">
           <Header />

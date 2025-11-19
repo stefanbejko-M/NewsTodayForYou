@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
-import Script from 'next/script'
 import type { Metadata } from 'next'
 
 export const revalidate = 0
@@ -31,19 +30,30 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     .eq('slug', params.slug)
     .maybeSingle()
 
-  const title = data?.title ?? 'NewsTodayForYou'
+  const title = data?.title ? `${data.title} - NewsTodayForYou` : 'NewsTodayForYou'
   
-  // Get description: prefer excerpt, otherwise first 150 chars of body
+  // Helper: strip markdown for description
+  const stripMarkdown = (text: string | null | undefined): string => {
+    if (!text) return ''
+    return text
+      .replace(/^##\s+/gm, '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+      .trim()
+  }
+  
+  // Get description: prefer excerpt, otherwise first 160 chars of body (strip markdown)
   let description = 'Latest article on NewsTodayForYou'
   if (data?.excerpt) {
-    description = data.excerpt.trim().slice(0, 150)
+    description = stripMarkdown(data.excerpt).slice(0, 160)
   } else if (data?.body) {
-    description = data.body.trim().slice(0, 150)
+    description = stripMarkdown(data.body).slice(0, 160)
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
   const articleUrl = `${siteUrl}/news/${params.slug}`
-  const images = data?.image_url ? [data.image_url] : ['/android-chrome-512x512.png']
+  const images = data?.image_url && data.image_url.trim() ? [data.image_url] : ['/android-chrome-512x512.png']
 
   return {
     title,
@@ -121,6 +131,48 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
     const publishedDate = post.created_at || new Date().toISOString()
     const modifiedDate = (post as any).updated_at || post.created_at || new Date().toISOString()
 
+    // Helper: strip markdown for description
+    const stripMarkdown = (text: string | null | undefined): string => {
+      if (!text) return ''
+      return text
+        .replace(/^##\s+/gm, '') // Remove markdown headings
+        .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
+        .replace(/\*(.+?)\*/g, '$1') // Remove italic
+        .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links, keep text
+        .trim()
+    }
+
+    // Build NewsArticle JSON-LD schema
+    const newsArticleSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'NewsArticle',
+      headline: post.title || 'News article',
+      description: post.excerpt
+        ? stripMarkdown(post.excerpt).slice(0, 160)
+        : stripMarkdown(post.body).slice(0, 160) || 'Latest news article from NewsTodayForYou',
+      datePublished: publishedDate,
+      dateModified: modifiedDate,
+      author: {
+        '@type': 'Organization',
+        name: 'NewsTodayForYou Editorial Team',
+      },
+      publisher: {
+        '@type': 'NewsMediaOrganization',
+        name: 'NewsTodayForYou',
+        logo: {
+          '@type': 'ImageObject',
+          url: 'https://newstoday4u.com/logo-nt.svg',
+        },
+      },
+      image: post.image_url && post.image_url.trim()
+        ? [post.image_url]
+        : ['https://newstoday4u.com/android-chrome-512x512.png'],
+      mainEntityOfPage: {
+        '@type': 'WebPage',
+        '@id': articleUrl,
+      },
+    }
+
     return (
       <>
         <article>
@@ -165,30 +217,10 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
             <div id="ad-in-1" style={{ minHeight: '250px', padding: '16px', border: '1px solid var(--border)', borderRadius: '12px' }} />
           </div>
         </article>
-        <Script id={`news-article-jsonld-${post.slug}`} type="application/ld+json">
-          {JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'NewsArticle',
-            headline: post.title || 'News article',
-            description: post.excerpt || (typeof post.body === 'string' ? post.body.slice(0, 160) : ''),
-            image: post.image_url || `${siteUrl}/android-chrome-512x512.png`,
-            datePublished: publishedDate,
-            dateModified: modifiedDate,
-            author: {
-              '@type': 'Person',
-              name: 'NewsTodayForYou Team',
-            },
-            publisher: {
-              '@type': 'Organization',
-              name: 'NewsTodayForYou',
-              logo: {
-                '@type': 'ImageObject',
-                url: `${siteUrl}/android-chrome-512x512.png`,
-              },
-            },
-            mainEntityOfPage: articleUrl,
-          })}
-        </Script>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(newsArticleSchema) }}
+        />
       </>
     )
   } catch (error) {

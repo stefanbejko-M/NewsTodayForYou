@@ -98,8 +98,7 @@ export default async function Home() {
         <section className="home-intro">
           <h1>Latest News</h1>
           <p>
-            Welcome to NewsTodayForYou – a fast, clean overview of the latest stories from around
-            the world, updated several times per day.
+            NewsTodayForYou brings you a fast, clean view of the latest world news, refreshed several times per day from trusted global sources.
           </p>
         </section>
         {validPosts.length === 0 ? (
