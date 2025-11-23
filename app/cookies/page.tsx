@@ -8,24 +8,24 @@ export default function CookiesPage() {
     <div className="container" style={{ padding: '24px 0', maxWidth: '800px' }}>
       <h1>Cookie Policy</h1>
       <p>
-        NewsTodayForYou користи колачиња (cookies) и слични технологии за да обезбеди основни функции на сајтот, да ги запамети вашите преференци, да анализира сообраќај и да го подобри нашиот сервис.
+        NewsTodayForYou uses cookies and similar technologies to provide basic site functions, remember your preferences, analyze traffic, and improve our service.
       </p>
-      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Типови на колачиња</h2>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Types of Cookies</h2>
       <p>
-        Користиме неколку типови на колачиња:
+        We use several types of cookies:
       </p>
       <ul style={{ lineHeight: '1.8' }}>
-        <li><strong>Неопходни колачиња</strong> – потребни за основна функционалност на сајтот</li>
-        <li><strong>Преференци</strong> – за запаметување на вашите избори и подесувања</li>
-        <li><strong>Аналитички колачиња</strong> – за мерење на употребата и подобрување на перформансите</li>
-        <li><strong>Рекламни колачиња</strong> – користени од трети страни (како Google AdSense) за персонализирани реклами</li>
+        <li><strong>Essential cookies</strong> – required for basic site functionality</li>
+        <li><strong>Preferences</strong> – for remembering your choices and settings</li>
+        <li><strong>Analytics cookies</strong> – for measuring usage and improving performance</li>
+        <li><strong>Advertising cookies</strong> – used by third parties (such as Google AdSense) for personalized ads</li>
       </ul>
-      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Управување со колачиња</h2>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Managing Cookies</h2>
       <p>
-        Можете да управувате или оневозможите колачиња преку подесувањата на вашиот прелистувач. Ве молиме имајте предвид дека оневозможувањето на одредени колачиња може да влијае на вашето искуство при користење на нашиот сајт.
+        You can manage or disable cookies through your browser settings. Please note that disabling certain cookies may affect your experience when using our site.
       </p>
       <p>
-        За повеќе информации за тоа како ги обработуваме вашите податоци, ве молиме погледнете ја нашата <a href="/privacy">Политика за приватност</a>.
+        For more information about how we process your data, please see our <a href="/privacy">Privacy Policy</a>.
       </p>
     </div>
   )

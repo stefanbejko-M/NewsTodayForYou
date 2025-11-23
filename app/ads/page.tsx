@@ -8,22 +8,22 @@ export default function AdsPage() {
     <div className="container" style={{ padding: '24px 0', maxWidth: '800px' }}>
       <h1>Ad Choices</h1>
       <p>
-        NewsTodayForYou планира да користи трети страни рекламни мрежи, вклучувајќи Google AdSense, за да финансира нашиот сервис и да обезбеди бесплатна содржина за нашите корисници.
+        NewsTodayForYou plans to use third-party advertising networks, including Google AdSense, to fund our service and provide free content for our users.
       </p>
       <p>
-        Овие рекламни мрежи може да користат колачиња (cookies) и слични технологии за персонализација на рекламите според вашите интереси. Рекламите може да се прикажуваат врз основа на вашата историја на прегледување, локација и други фактори.
+        These advertising networks may use cookies and similar technologies to personalize ads based on your interests. Ads may be displayed based on your browsing history, location, and other factors.
       </p>
-      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Управување со рекламни преференци</h2>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Managing Ad Preferences</h2>
       <p>
-        Можете да управувате со вашите рекламни преференци на неколку начини:
+        You can manage your advertising preferences in several ways:
       </p>
       <ul style={{ lineHeight: '1.8' }}>
-        <li><strong>Преку вашиот прелистувач</strong> – прилагодете ги подесувањата за колачиња и реклами</li>
-        <li><strong>Преку Google Ad Settings</strong> – посетете го <a href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer">Google Ad Settings</a> за управување со персонализирани реклами</li>
-        <li><strong>Преку подесувањата на уредот</strong> – мобилните уреди често имаат опции за ограничување на рекламирање</li>
+        <li><strong>Through your browser</strong> – adjust cookie and advertising settings</li>
+        <li><strong>Through Google Ad Settings</strong> – visit <a href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer">Google Ad Settings</a> to manage personalized ads</li>
+        <li><strong>Through device settings</strong> – mobile devices often have options to limit advertising</li>
       </ul>
       <p>
-        За повеќе детали за тоа како ги обработуваме вашите податоци, ве молиме погледнете ја нашата <a href="/privacy">Политика за приватност</a> и <a href="/cookies">Политика за колачиња</a>.
+        For more details about how we process your data, please see our <a href="/privacy">Privacy Policy</a> and <a href="/cookies">Cookie Policy</a>.
       </p>
     </div>
   )

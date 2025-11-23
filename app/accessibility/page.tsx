@@ -8,24 +8,24 @@ export default function AccessibilityPage() {
     <div className="container" style={{ padding: '24px 0', maxWidth: '800px' }}>
       <h1>Accessibility</h1>
       <p>
-        NewsTodayForYou е посветен на обезбедување пристапно искуство за сите корисници. Нашата цел е континуирано да го подобруваме нашиот сајт и да обезбедиме дека нашата содржина може да биде пристапна за луѓе со различни способности и технологии.
+        NewsTodayForYou is committed to providing an accessible experience for all users. Our goal is to continuously improve our site and ensure that our content can be accessed by people with diverse abilities and technologies.
       </p>
-      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Наши напори</h2>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Our Efforts</h2>
       <p>
-        Се стремиме да:
+        We strive to:
       </p>
       <ul style={{ lineHeight: '1.8' }}>
-        <li>Користиме семантички HTML за подобро читање од екрани</li>
-        <li>Обезбедуваме алтернативен текст за слики</li>
-        <li>Обезбедуваме контраст на бои кој е достапен за читање</li>
-        <li>Тестираме со различни алатки и прелистувачи</li>
+        <li>Use semantic HTML for better screen reader compatibility</li>
+        <li>Provide alternative text for images</li>
+        <li>Ensure color contrast that is readable and accessible</li>
+        <li>Test with various tools and browsers</li>
       </ul>
-      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Повратни информации</h2>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Feedback</h2>
       <p>
-        Ако наидете на какви било бариери за пристапност или имате предлози за подобрување, ве молиме контактирајте не на <a href="mailto:office@newstoday4u.com">office@newstoday4u.com</a> за да можеме да ги адресираме вашите загрижености.
+        If you encounter any accessibility barriers or have suggestions for improvement, please contact us at <a href="mailto:office@newstoday4u.com">office@newstoday4u.com</a> so we can address your concerns.
       </p>
       <p>
-        Вашите повратни информации се важни за нас и ќе работиме на подобрување на пристапноста на нашиот сајт.
+        Your feedback is important to us, and we will work to improve the accessibility of our site.
       </p>
     </div>
   )

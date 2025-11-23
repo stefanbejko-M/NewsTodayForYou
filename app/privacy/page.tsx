@@ -8,36 +8,36 @@ export default function PrivacyPage() {
     <div className="container" style={{ padding: '24px 0', maxWidth: '800px' }}>
       <h1>Privacy Policy</h1>
       <p>
-        NewsTodayForYou го цени вашето право на приватност. Оваа политика опишува како собираме, користиме и заштитуваме ваши информации.
+        NewsTodayForYou values your right to privacy. This policy describes how we collect, use, and protect your information.
       </p>
-      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Податоци што ги собираме</h2>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Data We Collect</h2>
       <p>
-        Собираме ограничени информации неопходни за работа и подобрување на нашиот сервис:
-      </p>
-      <ul style={{ lineHeight: '1.8' }}>
-        <li><strong>Кориснички податоци</strong> – основна статистика за употреба, IP адреси (за безбедност и аналитика)</li>
-        <li><strong>Колачиња (Cookies)</strong> – за преференци, аналитика и рекламирање</li>
-        <li><strong>Логи</strong> – информации за пристап до страници и грешки</li>
-      </ul>
-      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Како ги користиме податоците</h2>
-      <p>
-        Ги користиме податоците за:
+        We collect limited information necessary for operation and improvement of our service:
       </p>
       <ul style={{ lineHeight: '1.8' }}>
-        <li>Обезбедување и подобрување на нашиот сервис</li>
-        <li>Прикажување релевантна содржина и реклами</li>
-        <li>Мерење на перформансите и анализирање на трендови</li>
-        <li>Заштита од злоупотреба и безбедност</li>
+        <li><strong>User data</strong> – basic usage statistics, IP addresses (for security and analytics)</li>
+        <li><strong>Cookies</strong> – for preferences, analytics, and advertising</li>
+        <li><strong>Logs</strong> – information about page access and errors</li>
       </ul>
-      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Трети страни</h2>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>How We Use Data</h2>
       <p>
-        Работиме со трети страни партнери, вклучувајќи рекламни мрежи (како Google AdSense) и аналитички провајдери, кои може да користат колачиња или слични технологии. Овие партнери имаат свои политики за приватност.
+        We use data to:
+      </p>
+      <ul style={{ lineHeight: '1.8' }}>
+        <li>Provide and improve our service</li>
+        <li>Display relevant content and advertisements</li>
+        <li>Measure performance and analyze trends</li>
+        <li>Protect against abuse and ensure security</li>
+      </ul>
+      <h2 style={{ marginTop: '32px', marginBottom: '16px' }}>Third Parties</h2>
+      <p>
+        We work with third-party partners, including advertising networks (such as Google AdSense) and analytics providers, who may use cookies or similar technologies. These partners have their own privacy policies.
       </p>
       <p>
-        <strong>Не продаваме ваши лични податоци.</strong> Можете да управувате со преференците за колачиња преку подесувањата на вашиот прелистувач.
+        <strong>We do not sell your personal data.</strong> You can manage cookie preferences through your browser settings.
       </p>
       <p>
-        Ако имате прашања за оваа политика или нашите практики за податоци, ве молиме контактирајте не на <a href="mailto:office@newstoday4u.com">office@newstoday4u.com</a>.
+        If you have questions about this policy or our data practices, please contact us at <a href="mailto:office@newstoday4u.com">office@newstoday4u.com</a>.
       </p>
     </div>
   )
