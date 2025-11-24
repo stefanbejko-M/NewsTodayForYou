@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { SocialShare } from '@/components/SocialShare'
 
 export const revalidate = 0
 
@@ -256,6 +257,7 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
           <div style={{ marginTop: 48, marginBottom: 32 }}>
             <div id="ad-in-1" style={{ minHeight: '250px', padding: '16px', border: '1px solid var(--border)', borderRadius: '12px' }} />
           </div>
+          <SocialShare title={post.title} />
         </article>
 
         {relatedPosts.length > 0 && (

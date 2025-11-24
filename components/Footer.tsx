@@ -15,6 +15,7 @@ export default function Footer() {
             <Link href="/ads">Ad Choices</Link>
             <Link href="/accessibility">Accessibility</Link>
             <Link href="/about">About</Link>
+            <Link href="/resources">Resources</Link>
             <Link href="/contact">Contact</Link>
           </nav>
         </div>
