@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { SocialShare } from '@/components/SocialShare'
+import { Breadcrumbs } from '@/components/Breadcrumbs'
 
 export const revalidate = 0
 
@@ -69,7 +70,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return {
     title,
     description,
-    alternates: { canonical: `/news/${params.slug}` },
+    alternates: { canonical: articleUrl },
     openGraph: {
       title,
       description,
@@ -77,12 +78,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       type: 'article',
       images: images,
       siteName: 'NewsTodayForYou',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: data?.image_url || '/android-chrome-512x512.png',
     },
   }
 }
@@ -214,9 +209,37 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
       }
     }
 
+    // Build breadcrumb items
+    const breadcrumbItems = []
+    breadcrumbItems.push({ label: 'Home', href: '/' })
+    
+    if (cat && cat?.slug && cat?.name) {
+      breadcrumbItems.push({ label: cat.name, href: `/category/${cat.slug}` })
+    }
+    
+    breadcrumbItems.push({ label: post.title })
+
+    // Build BreadcrumbList JSON-LD
+    const breadcrumbListSchema: any = {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: breadcrumbItems.map((item, index) => {
+        const listItem: any = {
+          '@type': 'ListItem',
+          position: index + 1,
+          name: item.label,
+        }
+        if (item.href) {
+          listItem.item = `${siteUrl}${item.href}`
+        }
+        return listItem
+      }),
+    }
+
     return (
       <>
         <article>
+          <Breadcrumbs items={breadcrumbItems} />
           <h1>{post.title}</h1>
           {cat && cat?.slug && cat?.name ? (
             <div style={{ color: '#64748b', fontSize: '14px', marginBottom: '12px' }}>
@@ -286,6 +309,10 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(newsArticleSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbListSchema) }}
         />
       </>
     )

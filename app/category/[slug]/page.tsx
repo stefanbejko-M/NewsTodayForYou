@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
+import { Breadcrumbs } from '@/components/Breadcrumbs'
 
 export const revalidate = 0
 
@@ -17,22 +18,22 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     .maybeSingle()
 
   const categoryName = categoryData?.name || params.slug
-  const title = `${categoryName} – NewsTodayForYou`
-  const description = `Latest articles in the ${categoryName} category. NewsTodayForYou refreshes these stories every few hours from trusted sources.`
+  const title = `${categoryName} News – NewsTodayForYou`
+  const description = `Latest ${categoryName.toLowerCase()} news curated from trusted global sources, updated several times per day.`
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
+  const categoryUrl = `${siteUrl}/category/${params.slug}`
 
   return {
     title,
     description,
+    alternates: { canonical: categoryUrl },
     openGraph: {
       title,
       description,
+      url: categoryUrl,
       type: 'website',
+      images: ['/android-chrome-512x512.png'],
       siteName: 'NewsTodayForYou',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
     },
   }
 }
@@ -123,11 +124,18 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
     const categoryName = categoryData.name || params.slug
 
+    // Build breadcrumb items
+    const breadcrumbItems = [
+      { label: 'Home', href: '/' },
+      { label: `${categoryName} News` },
+    ]
+
     return (
       <div>
-        <h1>{categoryName}</h1>
+        <Breadcrumbs items={breadcrumbItems} />
+        <h1>{categoryName} News</h1>
         <p style={{ color: '#4b5563', marginBottom: '24px', maxWidth: '640px' }}>
-          Latest articles in the {categoryName} category. NewsTodayForYou refreshes these stories every few hours from trusted sources.
+          Latest {categoryName.toLowerCase()} news curated from trusted global sources, updated several times per day.
         </p>
         {validPosts.length === 0 ? (
           <p style={{ color: '#666', padding: '20px 0' }}>
