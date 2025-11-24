@@ -14,8 +14,18 @@ type Post = {
   source_name: string | null
   views?: number | null
   image_url?: string | null
+  category_id?: number | null
   // Supabase nested relation may return object or array; use runtime guard
   category?: any
+}
+
+type RelatedPost = {
+  id: number
+  title: string
+  slug: string
+  image_url?: string | null
+  source_name: string | null
+  created_at: string
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -87,7 +97,7 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
 
     const { data, error } = await client
       .from('post')
-      .select('*')
+      .select('*, category_id')
       .eq('slug', params.slug)
       .maybeSingle()
 
@@ -142,14 +152,15 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
         .trim()
     }
 
-    // Build NewsArticle JSON-LD schema
-    const newsArticleSchema = {
+    // Build NewsArticle JSON-LD schema (clean undefined values)
+    const newsArticleSchema: any = {
       '@context': 'https://schema.org',
       '@type': 'NewsArticle',
+      mainEntityOfPage: {
+        '@type': 'WebPage',
+        '@id': articleUrl,
+      },
       headline: post.title || 'News article',
-      description: post.excerpt
-        ? stripMarkdown(post.excerpt).slice(0, 160)
-        : stripMarkdown(post.body).slice(0, 160) || 'Latest news article from NewsTodayForYou',
       datePublished: publishedDate,
       dateModified: modifiedDate,
       author: {
@@ -164,13 +175,42 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
           url: 'https://newstoday4u.com/logo-nt.svg',
         },
       },
-      image: post.image_url && post.image_url.trim()
-        ? [post.image_url]
-        : ['https://newstoday4u.com/android-chrome-512x512.png'],
-      mainEntityOfPage: {
-        '@type': 'WebPage',
-        '@id': articleUrl,
-      },
+    }
+
+    // Add description if available
+    const description = post.excerpt
+      ? stripMarkdown(post.excerpt).slice(0, 160)
+      : stripMarkdown(post.body).slice(0, 160)
+    if (description) {
+      newsArticleSchema.description = description
+    }
+
+    // Add image if available
+    if (post.image_url && post.image_url.trim()) {
+      newsArticleSchema.image = [post.image_url]
+    } else {
+      newsArticleSchema.image = ['https://newstoday4u.com/android-chrome-512x512.png']
+    }
+
+    // Fetch related posts from the same category
+    let relatedPosts: RelatedPost[] = []
+    if (post.category_id) {
+      try {
+        const { data: relatedData } = await client
+          .from('post')
+          .select('id, title, slug, image_url, source_name, created_at')
+          .eq('category_id', post.category_id)
+          .neq('id', post.id)
+          .order('created_at', { ascending: false })
+          .limit(6)
+        
+        if (relatedData && Array.isArray(relatedData)) {
+          relatedPosts = relatedData as RelatedPost[]
+        }
+      } catch (e) {
+        console.error('Failed to fetch related posts:', e)
+        // Continue without related posts if fetch fails
+      }
     }
 
     return (
@@ -217,6 +257,30 @@ export default async function NewsDetail({ params }: { params: { slug: string } 
             <div id="ad-in-1" style={{ minHeight: '250px', padding: '16px', border: '1px solid var(--border)', borderRadius: '12px' }} />
           </div>
         </article>
+
+        {relatedPosts.length > 0 && (
+          <section className="related-stories">
+            <h2>Related stories</h2>
+            <div className="related-grid">
+              {relatedPosts.map((item) => (
+                <Link key={item.id} href={`/news/${item.slug}`} className="related-card">
+                  {item.image_url && (
+                    <img src={item.image_url} alt={item.title} className="related-image" />
+                  )}
+                  <h3>{item.title}</h3>
+                  <p className="related-meta">
+                    {item.source_name || 'NewsTodayForYou'} · {new Date(item.created_at).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(newsArticleSchema) }}
