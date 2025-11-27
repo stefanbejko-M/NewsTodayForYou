@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 import { getFinalCategorySlug } from '../../../../lib/categoryClassifier'
+import { publishArticleToAllSocial, type SocialArticlePayload } from '@/lib/facebook'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -471,6 +472,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
+
     console.log('Starting news fetch and rewrite process...')
     console.log(`Mode: ${isDryRun ? 'DRY RUN (no DB writes)' : 'LIVE'}`)
     console.log(`Process limit: ${processLimit}`)
@@ -603,6 +606,31 @@ export async function GET(request: NextRequest) {
           if (insertResult === true) {
             inserted++
             console.log('[DEBUG] INSERT OK:', rewritten.new_slug)
+
+            // Prepare social media payload for all platforms
+            const summaryText =
+              typeof rewritten.new_excerpt === 'string'
+                ? rewritten.new_excerpt
+                : (typeof rewritten.new_content === 'string'
+                    ? rewritten.new_content.slice(0, 200)
+                    : '')
+
+            const socialPayload: SocialArticlePayload = {
+              slug: rewritten.new_slug,
+              title: rewritten.new_title,
+              summary: summaryText,
+              body: rewritten.new_content,
+              imageUrl: imageUrl ?? null,
+              sourceName: sourceName,
+            }
+
+            // Fire-and-forget social posting (does not block ingestion)
+            void publishArticleToAllSocial(socialPayload).catch((err) => {
+              console.error('[SOCIAL] Unexpected error when publishing article', {
+                slug: socialPayload.slug,
+                error: err instanceof Error ? err.message : String(err),
+              })
+            })
           } else if (insertResult === 'slug_exists') {
             skipStats.slug_exists++
           } else {
