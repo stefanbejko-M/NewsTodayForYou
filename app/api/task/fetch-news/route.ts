@@ -622,6 +622,7 @@ export async function GET(request: NextRequest) {
               body: rewritten.new_content,
               imageUrl: imageUrl ?? null,
               sourceName: sourceName,
+              category: categorySlug,
             }
 
             // Fire-and-forget social posting (does not block ingestion)

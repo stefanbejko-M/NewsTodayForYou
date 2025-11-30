@@ -9,6 +9,50 @@ export type SocialArticlePayload = {
   imageUrl?: string | null
   createdAt?: string | null
   sourceName?: string | null
+  category?: string | null
+}
+
+/**
+ * Build hashtags string from article category
+ */
+function buildHashtags(payload: SocialArticlePayload): string {
+  const hashtags: string[] = ['#NewsTodayForYou']
+
+  if (payload.category) {
+    const categoryLower = payload.category.toLowerCase()
+    const categoryMap: Record<string, string> = {
+      'sports': '#Sports',
+      'politics': '#Politics',
+      'ai-news': '#AINews',
+      'celebrity': '#Celebrity',
+      'games': '#Games',
+      'daily-highlights': '#DailyHighlights',
+    }
+
+    if (categoryMap[categoryLower]) {
+      hashtags.push(categoryMap[categoryLower])
+    }
+  }
+
+  return hashtags.join(' ')
+}
+
+/**
+ * Ensure imageUrl is a fully qualified URL
+ */
+function ensureFullImageUrl(imageUrl: string | null | undefined): string | undefined {
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    return undefined
+  }
+
+  // If already a full URL, return as-is
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl
+  }
+
+  // If relative, prepend site URL
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
+  return new URL(imageUrl, baseUrl).toString()
 }
 
 /**
@@ -27,25 +71,49 @@ export async function publishToFacebook(article: SocialArticlePayload): Promise<
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
   const url = new URL(`/news/${article.slug}`, baseUrl).toString()
 
-  // Compose message: title, summary (max ~200 chars), blank line, read more link
+  // Compose message: title, summary (max ~200 chars), blank line, read more link, hashtags
   const safeSummary = article.summary?.trim() || (article.body ? article.body.slice(0, 200) : '')
   const shortSummary = safeSummary.length > 200 ? safeSummary.slice(0, 197) + '...' : safeSummary
+  const hashtags = buildHashtags(article)
 
   const messageLines = [
     article.title,
     '',
     shortSummary,
     '',
-    `Read more: ${url}`
+    `Read more: ${url}`,
+    '',
+    hashtags
   ].filter(Boolean)
 
   const message = messageLines.join('\n')
 
-  const body = new URLSearchParams({
+  // Ensure imageUrl is a full URL
+  const fullImageUrl = ensureFullImageUrl(article.imageUrl)
+
+  // Build request body with picture parameter
+  const bodyParams: Record<string, string> = {
     message,
     link: url,
     access_token: PAGE_TOKEN,
-  })
+  }
+
+  if (fullImageUrl) {
+    bodyParams.picture = fullImageUrl
+  }
+
+  const body = new URLSearchParams(bodyParams)
+
+  // Debug logging (only in development or when explicitly enabled)
+  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_SOCIAL === '1') {
+    console.log('[FB POST] Payload', {
+      articleId: article.id,
+      slug: article.slug,
+      hasPicture: !!fullImageUrl,
+      pictureUrl: fullImageUrl || 'none',
+      messageLength: message.length,
+    })
+  }
 
   try {
     const response = await fetch(`https://graph.facebook.com/${FACEBOOK_API_VERSION}/${PAGE_ID}/feed`, {
@@ -100,22 +168,28 @@ export async function publishToInstagram(article: SocialArticlePayload): Promise
     return
   }
 
-  if (!article.imageUrl || typeof article.imageUrl !== 'string') {
-    console.warn('[IG POST] Skipping: no imageUrl for article', article.id)
-    return
-  }
-
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
   const url = new URL(`/news/${article.slug}`, baseUrl).toString()
 
-  // Compose caption: title + short summary + URL
+  // Compose caption: title + short summary + URL + hashtags (same format as Facebook)
   const safeSummary = article.summary?.trim() || (article.body ? article.body.slice(0, 150) : '')
-  const caption = `${article.title}\n\n${safeSummary}\n\n${url}`
+  const shortSummary = safeSummary.length > 150 ? safeSummary.slice(0, 147) + '...' : safeSummary
+  const hashtags = buildHashtags(article)
+
+  const caption = `${article.title}\n\n${shortSummary}\n\n${url}\n\n${hashtags}`
+
+  // Ensure imageUrl is a full URL
+  const fullImageUrl = ensureFullImageUrl(article.imageUrl)
+  
+  if (!fullImageUrl) {
+    console.warn('[IG POST] Skipping: no valid imageUrl for article', article.id)
+    return
+  }
 
   try {
     // Step 1: Create media container
     const createBody = new URLSearchParams({
-      image_url: article.imageUrl,
+      image_url: fullImageUrl,
       caption,
       access_token: INSTAGRAM_ACCESS_TOKEN,
     })
@@ -279,40 +353,64 @@ export async function publishToThreads(article: SocialArticlePayload): Promise<v
   }
 }
 
+export type SocialPostResult = {
+  network: 'facebook' | 'instagram' | 'threads'
+  ok: boolean
+  status?: string
+  error?: string
+}
+
 /**
  * Publish article to all social networks (Facebook, Instagram, Threads).
  * Errors from individual platforms are caught and logged but do not stop other platforms.
+ * Returns status for each network.
  */
-export async function publishArticleToAllSocial(article: SocialArticlePayload): Promise<void> {
+export async function publishArticleToAllSocial(article: SocialArticlePayload): Promise<SocialPostResult[]> {
+  const results: SocialPostResult[] = []
+
+  // Facebook
   try {
     await publishToFacebook(article)
+    results.push({ network: 'facebook', ok: true, status: 'posted' })
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err)
     console.error('[SOCIAL] Facebook publishing failed', {
       articleId: article.id,
       slug: article.slug,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMsg,
     })
+    results.push({ network: 'facebook', ok: false, error: errorMsg })
   }
 
+  // Instagram
   try {
     await publishToInstagram(article)
+    results.push({ network: 'instagram', ok: true, status: 'posted' })
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err)
     console.error('[SOCIAL] Instagram publishing failed', {
       articleId: article.id,
       slug: article.slug,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMsg,
     })
+    results.push({ network: 'instagram', ok: false, error: errorMsg })
   }
 
+  // Threads
   try {
     await publishToThreads(article)
+    results.push({ network: 'threads', ok: true, status: 'posted' })
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err)
     console.error('[SOCIAL] Threads publishing failed', {
       articleId: article.id,
       slug: article.slug,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMsg,
     })
+    results.push({ network: 'threads', ok: false, error: errorMsg })
   }
+
+  return results
 }
 
 // Legacy function for backward compatibility
