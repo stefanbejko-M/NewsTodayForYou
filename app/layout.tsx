@@ -83,6 +83,7 @@ export const metadata: Metadata = {
     'google-site-verification':
       process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
       'uPHG7MNMW6BiqE9QjyVfMGEsVFygeyrx9Ac-Sp_H8WI',
+    'facebook-domain-verification': 'dk8sarjjltxpxnsyfnofnvntknlewn',
   },
 }
 
