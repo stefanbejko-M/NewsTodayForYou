@@ -56,10 +56,20 @@ function ensureFullImageUrl(imageUrl: string | null | undefined): string | undef
 }
 
 /**
+ * @deprecated This function is disabled. Use createSocialPostForArticle from @/lib/socialPostService instead.
+ * 
  * Publish a news article to a Facebook page feed using the Graph API.
  * If the Facebook access token is missing, this function logs a warning and exits silently.
+ * 
+ * NOTE: This function is now disabled and will not post to Facebook.
  */
 export async function publishToFacebook(article: SocialArticlePayload): Promise<void> {
+  console.warn(
+    '[SOCIAL] publishToFacebook is disabled. ' +
+    'Auto-posting has been replaced with manual review system. ' +
+    'Use createSocialPostForArticle from @/lib/socialPostService instead.'
+  )
+  return
   const PAGE_ID = process.env.FACEBOOK_PAGE_ID
   const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN
 
@@ -72,7 +82,8 @@ export async function publishToFacebook(article: SocialArticlePayload): Promise<
   const url = new URL(`/news/${article.slug}`, baseUrl).toString()
 
   // Compose message: title, summary (max ~200 chars), blank line, read more link, hashtags
-  const safeSummary = article.summary?.trim() || (article.body ? article.body.slice(0, 200) : '')
+  const bodyText = article.body ?? ''
+  const safeSummary = article.summary?.trim() || bodyText.slice(0, 200) || ''
   const shortSummary = safeSummary.length > 200 ? safeSummary.slice(0, 197) + '...' : safeSummary
   const hashtags = buildHashtags(article)
 
@@ -95,11 +106,11 @@ export async function publishToFacebook(article: SocialArticlePayload): Promise<
   const bodyParams: Record<string, string> = {
     message,
     link: url,
-    access_token: PAGE_TOKEN,
+    access_token: PAGE_TOKEN || '',
   }
 
   if (fullImageUrl) {
-    bodyParams.picture = fullImageUrl
+    bodyParams.picture = fullImageUrl as string
   }
 
   const body = new URLSearchParams(bodyParams)
@@ -146,20 +157,42 @@ export async function publishToFacebook(article: SocialArticlePayload): Promise<
       articleId: article.id,
       slug: article.slug,
     })
-  } catch (error) {
+  } catch (err: unknown) {
+    let errorMsg = 'Unknown error'
+    if (err instanceof Error) {
+      errorMsg = (err as Error).message
+    } else if (typeof err === 'string') {
+      errorMsg = err as string
+    } else {
+      try {
+        errorMsg = JSON.stringify(err)
+      } catch {
+        errorMsg = String(err)
+      }
+    }
     console.error('[FB POST] Network error', {
       articleId: article.id,
       slug: article.slug,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMsg,
     })
   }
 }
 
 /**
+ * @deprecated This function is disabled. Use createSocialPostForArticle from @/lib/socialPostService instead.
+ * 
  * Publish a news article to Instagram using the Content Publishing API.
  * Requires imageUrl to be present. If env vars are missing, logs warning and returns.
+ * 
+ * NOTE: This function is now disabled and will not post to Instagram.
  */
 export async function publishToInstagram(article: SocialArticlePayload): Promise<void> {
+  console.warn(
+    '[SOCIAL] publishToInstagram is disabled. ' +
+    'Auto-posting has been replaced with manual review system. ' +
+    'Use createSocialPostForArticle from @/lib/socialPostService instead.'
+  )
+  return
   const INSTAGRAM_USER_ID = process.env.INSTAGRAM_USER_ID
   const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN
 
@@ -172,7 +205,8 @@ export async function publishToInstagram(article: SocialArticlePayload): Promise
   const url = new URL(`/news/${article.slug}`, baseUrl).toString()
 
   // Compose caption: title + short summary + URL + hashtags (same format as Facebook)
-  const safeSummary = article.summary?.trim() || (article.body ? article.body.slice(0, 150) : '')
+  const bodyText = article.body ?? ''
+  const safeSummary = article.summary?.trim() || bodyText.slice(0, 150) || ''
   const shortSummary = safeSummary.length > 150 ? safeSummary.slice(0, 147) + '...' : safeSummary
   const hashtags = buildHashtags(article)
 
@@ -189,9 +223,9 @@ export async function publishToInstagram(article: SocialArticlePayload): Promise
   try {
     // Step 1: Create media container
     const createBody = new URLSearchParams({
-      image_url: fullImageUrl,
+      image_url: fullImageUrl || '',
       caption,
-      access_token: INSTAGRAM_ACCESS_TOKEN,
+      access_token: INSTAGRAM_ACCESS_TOKEN || '',
     })
 
     const createResponse = await fetch(
@@ -235,8 +269,8 @@ export async function publishToInstagram(article: SocialArticlePayload): Promise
 
     // Step 2: Publish the container
     const publishBody = new URLSearchParams({
-      creation_id: containerId,
-      access_token: INSTAGRAM_ACCESS_TOKEN,
+      creation_id: containerId || '',
+      access_token: INSTAGRAM_ACCESS_TOKEN || '',
     })
 
     const publishResponse = await fetch(
@@ -276,17 +310,35 @@ export async function publishToInstagram(article: SocialArticlePayload): Promise
     console.error('[IG POST] Network error', {
       articleId: article.id,
       slug: article.slug,
-      error: error instanceof Error ? error.message : String(error),
+      error: (() => {
+        if (error instanceof Error) return (error as Error).message
+        if (typeof error === 'string') return error as string
+        try {
+          return JSON.stringify(error)
+        } catch {
+          return String(error)
+        }
+      })(),
     })
   }
 }
 
 /**
+ * @deprecated This function is disabled. Use createSocialPostForArticle from @/lib/socialPostService instead.
+ * 
  * Publish a news article to Threads.
  * If env vars are missing, logs warning and returns.
  * Note: Threads API endpoint may need verification - implementation is prepared but may need updates.
+ * 
+ * NOTE: This function is now disabled and will not post to Threads.
  */
 export async function publishToThreads(article: SocialArticlePayload): Promise<void> {
+  console.warn(
+    '[SOCIAL] publishToThreads is disabled. ' +
+    'Auto-posting has been replaced with manual review system. ' +
+    'Use createSocialPostForArticle from @/lib/socialPostService instead.'
+  )
+  return
   const THREADS_PROFILE_ID = process.env.THREADS_PROFILE_ID
   const THREADS_ACCESS_TOKEN = process.env.THREADS_ACCESS_TOKEN
 
@@ -299,7 +351,8 @@ export async function publishToThreads(article: SocialArticlePayload): Promise<v
   const url = new URL(`/news/${article.slug}`, baseUrl).toString()
 
   // Compose text: title + very short summary + URL
-  const safeSummary = article.summary?.trim() || (article.body ? article.body.slice(0, 100) : '')
+  const bodyText = article.body ?? ''
+  const safeSummary = article.summary?.trim() || bodyText.slice(0, 100) || ''
   const text = `${article.title}\n\n${safeSummary}\n\n${url}`
 
   try {
@@ -308,7 +361,7 @@ export async function publishToThreads(article: SocialArticlePayload): Promise<v
     const body = new URLSearchParams({
       media_type: 'TEXT',
       text,
-      access_token: THREADS_ACCESS_TOKEN,
+      access_token: THREADS_ACCESS_TOKEN || '',
     })
 
     const response = await fetch(
@@ -344,11 +397,23 @@ export async function publishToThreads(article: SocialArticlePayload): Promise<v
       articleId: article.id,
       slug: article.slug,
     })
-  } catch (error) {
+  } catch (err: unknown) {
+    let errorMsg = 'Unknown error'
+    if (err instanceof Error) {
+      errorMsg = (err as Error).message
+    } else if (typeof err === 'string') {
+      errorMsg = err as string
+    } else {
+      try {
+        errorMsg = JSON.stringify(err)
+      } catch {
+        errorMsg = String(err)
+      }
+    }
     console.error('[THREADS POST] Network error', {
       articleId: article.id,
       slug: article.slug,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMsg,
     })
   }
 }
@@ -361,56 +426,25 @@ export type SocialPostResult = {
 }
 
 /**
+ * @deprecated This function is disabled. Use createSocialPostForArticle from @/lib/socialPostService instead.
+ * Auto-posting to social networks has been replaced with a manual review system.
+ * 
  * Publish article to all social networks (Facebook, Instagram, Threads).
  * Errors from individual platforms are caught and logged but do not stop other platforms.
  * Returns status for each network.
+ * 
+ * NOTE: This function is now disabled and will not post to social networks.
+ * It only logs a warning and returns empty results.
  */
 export async function publishArticleToAllSocial(article: SocialArticlePayload): Promise<SocialPostResult[]> {
-  const results: SocialPostResult[] = []
-
-  // Facebook
-  try {
-    await publishToFacebook(article)
-    results.push({ network: 'facebook', ok: true, status: 'posted' })
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err)
-    console.error('[SOCIAL] Facebook publishing failed', {
-      articleId: article.id,
-      slug: article.slug,
-      error: errorMsg,
-    })
-    results.push({ network: 'facebook', ok: false, error: errorMsg })
-  }
-
-  // Instagram
-  try {
-    await publishToInstagram(article)
-    results.push({ network: 'instagram', ok: true, status: 'posted' })
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err)
-    console.error('[SOCIAL] Instagram publishing failed', {
-      articleId: article.id,
-      slug: article.slug,
-      error: errorMsg,
-    })
-    results.push({ network: 'instagram', ok: false, error: errorMsg })
-  }
-
-  // Threads
-  try {
-    await publishToThreads(article)
-    results.push({ network: 'threads', ok: true, status: 'posted' })
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err)
-    console.error('[SOCIAL] Threads publishing failed', {
-      articleId: article.id,
-      slug: article.slug,
-      error: errorMsg,
-    })
-    results.push({ network: 'threads', ok: false, error: errorMsg })
-  }
-
-  return results
+  console.warn(
+    '[SOCIAL] publishArticleToAllSocial is disabled. ' +
+    'Auto-posting has been replaced with manual review system. ' +
+    'Use createSocialPostForArticle from @/lib/socialPostService instead.'
+  )
+  
+  // Return empty results - no actual posting
+  return []
 }
 
 // Legacy function for backward compatibility

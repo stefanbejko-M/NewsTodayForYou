@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { publishArticleToAllSocial, type SocialArticlePayload, type SocialPostResult } from '@/lib/facebook'
+import { createSocialPostForArticle } from '@/lib/socialPostService'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -51,52 +51,40 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Build social payload
-    const summary = data.excerpt || (data.body ? data.body.slice(0, 200) : '')
+    // Build article URL
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
+    const articleUrl = `${baseUrl}/news/${data.slug}`
 
-    const socialPayload: SocialArticlePayload = {
+    // Create social post (prepared content, not auto-posting)
+    const socialPost = await createSocialPostForArticle({
       id: data.id,
       slug: data.slug || '',
       title: data.title || 'Untitled',
-      summary,
-      body: data.body || undefined,
+      body: data.body || '',
+      excerpt: data.excerpt || null,
       imageUrl: data.image_url || null,
-      createdAt: data.created_at || null,
-      sourceName: data.source_name || null,
       category: categorySlug,
-    }
+      sourceName: data.source_name || null,
+      url: articleUrl,
+    })
 
-    // Publish to all social networks and get results
-    const results = await publishArticleToAllSocial(socialPayload)
-
-    // Build response with network statuses
-    const response: {
-      ok: boolean
-      articleId: number | null
-      slug: string | null
-      title: string | null
-      facebook?: { ok: boolean; status?: string; error?: string }
-      instagram?: { ok: boolean; status?: string; error?: string }
-      threads?: { ok: boolean; status?: string; error?: string }
-    } = {
+    return NextResponse.json({
       ok: true,
+      message: 'Social post prepared (not auto-posted). Use admin panel to copy and post manually.',
       articleId: data.id,
       slug: data.slug,
       title: data.title,
-    }
-
-    // Add network statuses
-    for (const result of results) {
-      if (result.network === 'facebook') {
-        response.facebook = { ok: result.ok, status: result.status, error: result.error }
-      } else if (result.network === 'instagram') {
-        response.instagram = { ok: result.ok, status: result.status, error: result.error }
-      } else if (result.network === 'threads') {
-        response.threads = { ok: result.ok, status: result.status, error: result.error }
-      }
-    }
-
-    return NextResponse.json(response)
+      socialPost: {
+        id: socialPost.id,
+        fbText: socialPost.fb_text.substring(0, 100) + '...',
+        igText: socialPost.ig_text.substring(0, 100) + '...',
+        threadsText: socialPost.threads_text.substring(0, 100) + '...',
+        hashtags: socialPost.hashtags,
+        fbPosted: socialPost.fb_posted,
+        igPosted: socialPost.ig_posted,
+        threadsPosted: socialPost.threads_posted,
+      },
+    })
   } catch (error) {
     console.error('[DEBUG POST SOCIAL] Unexpected error:', error)
     return NextResponse.json(

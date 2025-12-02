@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 import { getFinalCategorySlug } from '../../../../lib/categoryClassifier'
-import { publishArticleToAllSocial, type SocialArticlePayload } from '@/lib/facebook'
+import { createSocialPostForArticle } from '@/lib/socialPostService'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -410,17 +410,17 @@ async function insertArticle(
   article: AIRewriteResult, 
   categoryId: number | null,
   imageUrl?: string | null
-): Promise<boolean | 'slug_exists'> {
+): Promise<{ success: true; id: number } | { success: false; reason: 'slug_exists' | 'insert_failed' }> {
   try {
     // Check if slug already exists
     const exists = await articleExists(article.new_slug)
     if (exists) {
       console.log(`[DEBUG] SKIP: slug already exists:`, article.new_slug)
-      return 'slug_exists'
+      return { success: false, reason: 'slug_exists' }
     }
 
     const supabase = getSupabaseClient()
-    const { error } = await supabase.from('post').insert([
+    const { data, error } = await supabase.from('post').insert([
       {
         title: article.new_title,
         slug: article.new_slug,
@@ -432,17 +432,22 @@ async function insertArticle(
         created_at: new Date().toISOString(),
         image_url: imageUrl ?? null,
       },
-    ])
+    ]).select('id').single()
 
     if (error) {
       console.error('[ERROR] Supabase insert error:', error)
-      return false
+      return { success: false, reason: 'insert_failed' }
     }
 
-    return true
+    if (!data || !data.id) {
+      console.error('[ERROR] Supabase insert returned no ID')
+      return { success: false, reason: 'insert_failed' }
+    }
+
+    return { success: true, id: data.id }
   } catch (error) {
     console.error('[ERROR] Exception in insertArticle:', error)
-    return false
+    return { success: false, reason: 'insert_failed' }
   }
 }
 
@@ -603,36 +608,35 @@ export async function GET(request: NextRequest) {
         } else {
           // Live mode: insert into database
           const insertResult = await insertArticle(rewritten, categoryId, imageUrl)
-          if (insertResult === true) {
+          if (insertResult.success) {
             inserted++
-            console.log('[DEBUG] INSERT OK:', rewritten.new_slug)
+            console.log('[DEBUG] INSERT OK:', rewritten.new_slug, 'ID:', insertResult.id)
 
-            // Prepare social media payload for all platforms
-            const summaryText =
-              typeof rewritten.new_excerpt === 'string'
-                ? rewritten.new_excerpt
-                : (typeof rewritten.new_content === 'string'
-                    ? rewritten.new_content.slice(0, 200)
-                    : '')
+            // Create social post (prepared content, not auto-posting)
+            try {
+              const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
+              const articleUrl = `${baseUrl}/news/${rewritten.new_slug}`
 
-            const socialPayload: SocialArticlePayload = {
-              slug: rewritten.new_slug,
-              title: rewritten.new_title,
-              summary: summaryText,
-              body: rewritten.new_content,
-              imageUrl: imageUrl ?? null,
-              sourceName: sourceName,
-              category: categorySlug,
-            }
-
-            // Fire-and-forget social posting (does not block ingestion)
-            void publishArticleToAllSocial(socialPayload).catch((err) => {
-              console.error('[SOCIAL] Unexpected error when publishing article', {
-                slug: socialPayload.slug,
+              await createSocialPostForArticle({
+                id: insertResult.id,
+                slug: rewritten.new_slug,
+                title: rewritten.new_title,
+                body: rewritten.new_content,
+                excerpt: rewritten.new_excerpt || null,
+                imageUrl: imageUrl ?? null,
+                category: categorySlug,
+                sourceName: sourceName,
+                url: articleUrl,
+              })
+              console.log('[SOCIAL] Created social post for article:', rewritten.new_slug)
+            } catch (err) {
+              // Don't block ingestion if social post creation fails
+              console.error('[SOCIAL] Error creating social post:', {
+                slug: rewritten.new_slug,
                 error: err instanceof Error ? err.message : String(err),
               })
-            })
-          } else if (insertResult === 'slug_exists') {
+            }
+          } else if (insertResult.reason === 'slug_exists') {
             skipStats.slug_exists++
           } else {
             console.error('[ERROR] Supabase insert failed for slug:', rewritten.new_slug)
