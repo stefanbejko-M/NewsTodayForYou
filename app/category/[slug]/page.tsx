@@ -5,7 +5,8 @@ import { Breadcrumbs } from '@/components/Breadcrumbs'
 
 export const revalidate = 0
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
   const client = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -14,14 +15,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const { data: categoryData } = await client
     .from('category')
     .select('name')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .maybeSingle()
 
-  const categoryName = categoryData?.name || params.slug
+  const categoryName = categoryData?.name || slug
   const title = `${categoryName} News – NewsTodayForYou`
   const description = `Latest ${categoryName.toLowerCase()} news curated from trusted global sources, updated several times per day.`
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
-  const categoryUrl = `${siteUrl}/category/${params.slug}`
+  const categoryUrl = `${siteUrl}/category/${slug}`
 
   return {
     title,
@@ -48,8 +49,9 @@ type Row = {
   image_url?: string | null
 }
 
-export default async function CategoryPage({ params }: { params: { slug: string } }) {
+export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   try {
+    const { slug } = await params
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
@@ -64,7 +66,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
     const { data: categoryData, error: categoryError } = await client
       .from('category')
       .select('id, slug, name')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .maybeSingle()
     
     if (categoryError) {
@@ -122,7 +124,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         created_at: p.created_at || null
       }))
 
-    const categoryName = categoryData.name || params.slug
+    const categoryName = categoryData.name || slug
 
     // Build breadcrumb items
     const breadcrumbItems = [

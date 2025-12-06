@@ -38,7 +38,7 @@ function isAuthorized(request: NextRequest): boolean {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authorization
@@ -46,7 +46,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const post = await getSocialPostById(params.id)
+    const { id } = await params
+    const post = await getSocialPostById(id)
 
     if (!post) {
       return NextResponse.json({ error: 'Social post not found' }, { status: 404 })
@@ -74,7 +75,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authorization
@@ -82,6 +83,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
 
     // Validate allowed fields
@@ -109,7 +111,7 @@ export async function PATCH(
       )
     }
 
-    const updatedPost = await updateSocialPost(params.id, updates)
+    const updatedPost = await updateSocialPost(id, updates)
 
     if (!updatedPost) {
       return NextResponse.json(

@@ -30,7 +30,8 @@ type RelatedPost = {
   created_at: string
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
   const client = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -39,7 +40,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const { data } = await client
     .from('post')
     .select('title, excerpt, body, image_url')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .maybeSingle()
 
   const title = data?.title ? `${data.title} - NewsTodayForYou` : 'NewsTodayForYou'
@@ -64,7 +65,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
-  const articleUrl = `${siteUrl}/news/${params.slug}`
+  const articleUrl = `${siteUrl}/news/${slug}`
   const images = data?.image_url && data.image_url.trim() ? [data.image_url] : ['/android-chrome-512x512.png']
 
   return {
