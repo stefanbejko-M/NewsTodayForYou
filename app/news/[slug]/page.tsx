@@ -83,19 +83,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
-export default async function NewsDetail({ params }: { params: { slug: string } }) {
+export default async function NewsDetail({ params }: { params: Promise<{ slug: string }> }) {
   try {
+    const { slug } = await params
     const client = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
-    console.log('[NEWS DEBUG] slug param =', params.slug)
+    console.log('[NEWS DEBUG] slug param =', slug)
 
     const { data, error } = await client
       .from('post')
       .select('*, category_id')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .maybeSingle()
 
     console.log('[NEWS DEBUG] raw data =', data, 'error =', error)
