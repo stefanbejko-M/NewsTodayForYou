@@ -30,6 +30,7 @@ export default function AdminSocialPostsPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'unposted'>('unposted')
   const [saving, setSaving] = useState(false)
+  const [publishing, setPublishing] = useState<string | null>(null) // Track which post is being published
 
   // Get token from URL or localStorage
   useEffect(() => {
@@ -159,6 +160,49 @@ export default function AdminSocialPostsPage() {
       alert('Failed to update post')
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Publish to Instagram
+  const publishToInstagram = async (postId: string) => {
+    try {
+      setPublishing(postId)
+      setError(null)
+
+      const response = await fetch(`/api/social-posts/${postId}/publish`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': token,
+        },
+      })
+
+      if (response.status === 401) {
+        setError('Unauthorized. Please check your token.')
+        return
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to publish to Instagram')
+      }
+
+      // Update the post in the list and selected post
+      const updatedPost = data.post || { ...posts.find((p) => p.id === postId), ig_posted: true }
+      setPosts((prev) => prev.map((p) => (p.id === postId ? updatedPost : p)))
+
+      if (selectedPost?.id === postId) {
+        setSelectedPost(updatedPost)
+      }
+
+      alert(`Successfully published to Instagram! Post ID: ${data.instagramPostId || 'N/A'}`)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(errorMessage)
+      alert(`Failed to publish: ${errorMessage}`)
+    } finally {
+      setPublishing(null)
     }
   }
 
@@ -296,23 +340,46 @@ export default function AdminSocialPostsPage() {
                         </span>
                       </td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            fetchPost(post.id)
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            backgroundColor: '#2563eb',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                          }}
-                        >
-                          View
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              fetchPost(post.id)
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#2563eb',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                            }}
+                          >
+                            View
+                          </button>
+                          {!post.ig_posted && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                publishToInstagram(post.id)
+                              }}
+                              disabled={publishing === post.id}
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: publishing === post.id ? '#9ca3af' : '#e91e63',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: publishing === post.id ? 'not-allowed' : 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {publishing === post.id ? '...' : 'Publish IG'}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -405,21 +472,54 @@ export default function AdminSocialPostsPage() {
                       fontSize: '14px',
                     }}
                   />
-                  <button
-                    onClick={() => copyToClipboard(selectedPost.ig_text)}
-                    style={{
-                      marginTop: '8px',
-                      padding: '8px 16px',
-                      backgroundColor: '#10b981',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                    }}
-                  >
-                    Copy Instagram Text
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <button
+                      onClick={() => copyToClipboard(selectedPost.ig_text)}
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                      }}
+                    >
+                      Copy Instagram Text
+                    </button>
+                    {!selectedPost.ig_posted && (
+                      <button
+                        onClick={() => publishToInstagram(selectedPost.id)}
+                        disabled={publishing === selectedPost.id}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: publishing === selectedPost.id ? '#9ca3af' : '#e91e63',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: publishing === selectedPost.id ? 'not-allowed' : 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        {publishing === selectedPost.id ? 'Publishing...' : 'Publish to Instagram'}
+                      </button>
+                    )}
+                    {selectedPost.ig_posted && (
+                      <span
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ✓ Published
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Threads Text */}
