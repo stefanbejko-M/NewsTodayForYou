@@ -149,6 +149,15 @@ export async function POST(
       )
     }
 
+    // Sanitize URL: remove all whitespace (newlines, spaces, etc.)
+    const rawUrl = post.url ?? ''
+    const cleanUrl = rawUrl.replace(/\s/g, '')
+
+    console.log('[INSTAGRAM PUBLISH] Publishing social post URL:', {
+      rawUrl,
+      cleanUrl,
+    })
+
     // Build final caption with explicit format:
     // <AI text + hashtags>
     // Location: <location_name> (if present)
@@ -161,8 +170,8 @@ export async function POST(
       caption += `\n\nLocation: ${locationName.trim()}`
     }
 
-    // Always append the URL as "Read more: <url>"
-    caption += `\n\nRead more: ${post.url}`
+    // Always append the URL as "Read more: <url>" (using sanitized cleanUrl)
+    caption += `\n\nRead more: ${cleanUrl}`
 
     // Step 1: Create media container
     // For image posts, we only send: image_url (proxied), caption, and access_token

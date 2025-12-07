@@ -133,8 +133,10 @@ export async function POST(request: NextRequest) {
     // Process each article
     for (const post of recentPosts) {
       try {
-        // Build article URL
-        const articleUrl = `${baseUrl}/news/${post.slug}`
+        // Build article URL using URL constructor to ensure it's a single clean string
+        // This prevents any newlines or whitespace issues
+        const siteUrl = baseUrl.trim()
+        const articleUrl = new URL(`/news/${post.slug}`, siteUrl).toString()
 
         // Skip if social post already exists for this URL
         if (existingUrls.has(articleUrl)) {
