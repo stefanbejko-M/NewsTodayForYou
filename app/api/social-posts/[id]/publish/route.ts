@@ -98,6 +98,25 @@ export async function POST(
       )
     }
 
+    // Validate image_url is a direct image URL (not an HTML page)
+    const imageUrl = post.image_url.trim()
+    const imageUrlLower = imageUrl.toLowerCase()
+    const isDirectImage =
+      imageUrlLower.endsWith('.jpg') ||
+      imageUrlLower.endsWith('.jpeg') ||
+      imageUrlLower.endsWith('.png') ||
+      imageUrlLower.endsWith('.gif') ||
+      imageUrlLower.endsWith('.webp') ||
+      imageUrl.includes('?') // Some CDNs serve images with query params
+
+    if (!isDirectImage) {
+      console.warn(
+        '[INSTAGRAM PUBLISH] Image URL may not be a direct image link:',
+        imageUrl
+      )
+      // Continue anyway, but log a warning
+    }
+
     if (!post.url || post.url.trim().length === 0) {
       return NextResponse.json(
         { error: 'URL is missing or empty' },
@@ -119,14 +138,25 @@ export async function POST(
     caption += `\n\n${post.url}`
 
     // Step 1: Create media container
+    // For image posts, we only send: image_url, caption, and access_token
+    // Do NOT send media_type - Instagram API infers it automatically from image_url
     const createMediaUrl = `https://graph.facebook.com/v21.0/${instagramAccountId}/media`
     const createMediaParams = new URLSearchParams({
-      image_url: post.image_url,
+      image_url: imageUrl,
       caption: caption,
       access_token: instagramAccessToken,
     })
 
+    // Log the request payload (without access token for security)
     console.log('[INSTAGRAM PUBLISH] Creating media container...')
+    console.log('[INSTAGRAM PUBLISH] Request URL:', createMediaUrl)
+    console.log('[INSTAGRAM PUBLISH] Request params:', {
+      image_url: imageUrl,
+      caption: caption.substring(0, 100) + '...',
+      access_token: '***REDACTED***',
+    })
+    console.log('[INSTAGRAM PUBLISH] Request body (form-encoded):', createMediaParams.toString().replace(/access_token=[^&]+/, 'access_token=***REDACTED***'))
+
     const createMediaResponse = await fetch(createMediaUrl, {
       method: 'POST',
       headers: {
@@ -139,11 +169,29 @@ export async function POST(
 
     if (!createMediaResponse.ok || createMediaData.error) {
       const errorMessage = createMediaData.error?.message || 'Failed to create media container'
-      console.error('[INSTAGRAM PUBLISH] Create media error:', createMediaData.error)
+      const errorCode = createMediaData.error?.code
+      const errorType = createMediaData.error?.type
+      const errorSubcode = createMediaData.error?.error_subcode
+
+      console.error('[INSTAGRAM PUBLISH] Create media error:', {
+        message: errorMessage,
+        code: errorCode,
+        type: errorType,
+        subcode: errorSubcode,
+        fullError: createMediaData.error,
+        responseStatus: createMediaResponse.status,
+        responseBody: createMediaData,
+      })
+
       return NextResponse.json(
         {
           error: `Instagram API error: ${errorMessage}`,
-          details: createMediaData.error,
+          details: {
+            code: errorCode,
+            type: errorType,
+            subcode: errorSubcode,
+            fullError: createMediaData.error,
+          },
         },
         { status: 500 }
       )
@@ -179,11 +227,29 @@ export async function POST(
 
     if (!publishMediaResponse.ok || publishMediaData.error) {
       const errorMessage = publishMediaData.error?.message || 'Failed to publish media'
-      console.error('[INSTAGRAM PUBLISH] Publish media error:', publishMediaData.error)
+      const errorCode = publishMediaData.error?.code
+      const errorType = publishMediaData.error?.type
+      const errorSubcode = publishMediaData.error?.error_subcode
+
+      console.error('[INSTAGRAM PUBLISH] Publish media error:', {
+        message: errorMessage,
+        code: errorCode,
+        type: errorType,
+        subcode: errorSubcode,
+        fullError: publishMediaData.error,
+        responseStatus: publishMediaResponse.status,
+        responseBody: publishMediaData,
+      })
+
       return NextResponse.json(
         {
           error: `Instagram API error: ${errorMessage}`,
-          details: publishMediaData.error,
+          details: {
+            code: errorCode,
+            type: errorType,
+            subcode: errorSubcode,
+            fullError: publishMediaData.error,
+          },
         },
         { status: 500 }
       )
