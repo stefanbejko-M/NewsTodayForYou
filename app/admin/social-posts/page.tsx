@@ -25,6 +25,8 @@ export default function AdminSocialPostsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'unposted'>('unposted')
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [pendingCount, setPendingCount] = useState<number | null>(null)
 
   // Get token from URL or localStorage
   useEffect(() => {
@@ -36,6 +38,25 @@ export default function AdminSocialPostsPage() {
       localStorage.setItem('admin_token', initialToken)
     }
   }, [searchParams])
+
+  // Fetch pending count
+  useEffect(() => {
+    if (!token) return
+
+    const fetchPendingCount = async () => {
+      try {
+        const response = await fetch(`/api/social-posts/generate?token=${encodeURIComponent(token)}`)
+        if (response.ok) {
+          const data = await response.json()
+          setPendingCount(data.pendingInstagramPosts || 0)
+        }
+      } catch (err) {
+        // Silently fail - not critical
+      }
+    }
+
+    fetchPendingCount()
+  }, [token])
 
   // Fetch posts
   useEffect(() => {
@@ -157,6 +178,42 @@ export default function AdminSocialPostsPage() {
     }
   }
 
+  // Generate Instagram posts for new articles
+  const generateInstagramPosts = async () => {
+    try {
+      setGenerating(true)
+      setError(null)
+
+      const response = await fetch(`/api/social-posts/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': token,
+        },
+      })
+
+      if (response.status === 401) {
+        setError('Unauthorized. Please check your token.')
+        return
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate Instagram posts')
+      }
+
+      // Refresh the posts list
+      window.location.reload()
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(errorMessage)
+      alert(`Failed to generate: ${errorMessage}`)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   // Publish to Instagram
   const publishToInstagram = async (postId: string) => {
     try {
@@ -246,7 +303,7 @@ export default function AdminSocialPostsPage() {
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
       <h1>Admin Panel - Social Posts</h1>
 
-      <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
         <label>
           Filter:
           <select
@@ -259,13 +316,35 @@ export default function AdminSocialPostsPage() {
               borderRadius: '4px',
             }}
           >
-            <option value="unposted">Unposted</option>
+            <option value="unposted">Unposted (status ≠ published)</option>
             <option value="all">All</option>
           </select>
         </label>
         <span style={{ color: '#64748b' }}>
           {posts.length} post{posts.length !== 1 ? 's' : ''}
+          {pendingCount !== null && (
+            <span style={{ marginLeft: '8px' }}>
+              ({pendingCount} pending Instagram)
+            </span>
+          )}
         </span>
+        <button
+          onClick={generateInstagramPosts}
+          disabled={generating}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: generating ? '#9ca3af' : '#10b981',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: generating ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            marginLeft: 'auto',
+          }}
+        >
+          {generating ? 'Generating...' : 'Generate Instagram Posts'}
+        </button>
       </div>
 
       {error && (
