@@ -29,7 +29,117 @@ function getOpenAIClient(): OpenAI {
 }
 
 /**
+ * Generate Instagram suggested_text for social posts table
+ * This generates a Macedonian Instagram caption with hashtags (no URL)
+ */
+export async function generateInstagramSuggestedText(
+  article: ArticleData
+): Promise<string> {
+  const openai = getOpenAIClient()
+
+  // Build base hashtags based on category
+  const hashtags: string[] = ['#NewsTodayForYou']
+  if (article.category) {
+    const categoryLower = article.category.toLowerCase()
+    const categoryMap: Record<string, string> = {
+      sports: '#Спорт',
+      politics: '#Политика',
+      'ai-news': '#ВештачкаИнтелигенција',
+      celebrity: '#Знаменитости',
+      games: '#Игри',
+      'daily-highlights': '#ДневниВести',
+    }
+    if (categoryMap[categoryLower]) {
+      hashtags.push(categoryMap[categoryLower])
+    }
+  }
+
+  const prompt = `Ти си креатор на содржини за социјални мрежи. Генерирај привлечен Instagram опис на македонски јазик за вест.
+
+Наслов на веста: ${article.title}
+
+Резиме на веста: ${article.excerpt || article.body.slice(0, 500)}
+
+Категорија: ${article.category || 'општо'}
+
+Барања:
+
+1. Напиши природен Instagram опис на македонски јазик
+2. Користи 2-4 реченици
+3. Бидете визуелни и емоционални
+4. НЕ вклучувај URL на статијата (backend-от ќе го додаде)
+5. ЗАДОЛЖИТЕЛНО заврши со 3-7 релевантни хештегови на нов ред
+6. Хештеговите треба да бидат на македонски или англиски
+7. Максимално 600 карактери (вклучувајќи ги хештеговите)
+
+Формат:
+<главен текст>\n\n#хештег1 #хештег2 #хештег3
+
+Врати САМО текстот, без JSON, без markdown, без објаснувања.`
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Ти си професионален креатор на содржини за Instagram на македонски јазик. Врати САМО текстот, без JSON, без markdown, без објаснувања.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 400,
+    })
+
+    const content = completion.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response from OpenAI')
+    }
+
+    // Clean up the response - remove any markdown formatting
+    let suggestedText = content.trim()
+
+    // Remove markdown code blocks if present
+    suggestedText = suggestedText.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '')
+
+    // Ensure it ends with hashtags on a new line
+    // If it doesn't have hashtags, add some default ones
+    if (!suggestedText.includes('#')) {
+      const defaultHashtags = hashtags.join(' ')
+      suggestedText = `${suggestedText}\n\n${defaultHashtags}`
+    }
+
+    // Ensure hashtags are on a new line (if they're not already)
+    if (suggestedText.includes('#') && !suggestedText.includes('\n#')) {
+      // Find the last hashtag and ensure it's on a new line
+      const hashtagMatch = suggestedText.match(/#[\wА-Яа-я]+/g)
+      if (hashtagMatch && hashtagMatch.length > 0) {
+        const lastHashtagIndex = suggestedText.lastIndexOf(hashtagMatch[hashtagMatch.length - 1])
+        const beforeHashtags = suggestedText.substring(0, lastHashtagIndex).trim()
+        const hashtagsPart = suggestedText.substring(lastHashtagIndex).trim()
+        suggestedText = `${beforeHashtags}\n\n${hashtagsPart}`
+      }
+    }
+
+    return suggestedText.trim()
+  } catch (error) {
+    console.error('[INSTAGRAM SUGGESTED TEXT] Error generating text:', error)
+
+    // Fallback: generate simple text manually in Macedonian
+    const shortSummary = article.excerpt || article.body.slice(0, 150) + '...'
+    const fallbackText = `${article.title}\n\n${shortSummary}\n\n${hashtags.join(' ')}`
+
+    return fallbackText
+  }
+}
+
+/**
  * Generate social media post texts using OpenAI
+ * (Legacy function - kept for backward compatibility)
  */
 export async function generateSocialPostTexts(
   article: ArticleData
@@ -163,4 +273,3 @@ Do NOT include any markdown, code blocks, or explanations. Only the JSON object.
     }
   }
 }
-
