@@ -124,18 +124,18 @@ export async function POST(
       )
     }
 
-    // Build caption: use suggested_text if present, otherwise fall back to title
-    let caption = post.suggested_text?.trim() || post.title?.trim() || ''
+    // Build base caption: use suggested_text if present, otherwise fall back to title
+    const baseCaption = post.suggested_text?.trim() || post.title?.trim() || ''
 
-    if (caption.length === 0) {
+    if (baseCaption.length === 0) {
       return NextResponse.json(
         { error: 'Post has no text content (suggested_text or title is required)' },
         { status: 400 }
       )
     }
 
-    // Append article URL at the end
-    caption += `\n\n${post.url}`
+    // Final caption always includes the article URL on a new line at the end
+    const caption = `${baseCaption}\n\n${post.url}`
 
     // Step 1: Create media container
     // For image posts, we only send: image_url, caption, and access_token
