@@ -74,14 +74,23 @@ export async function POST(
       return NextResponse.json({ error: 'Social post not found' }, { status: 404 })
     }
 
-    // Validate post is ready for Instagram publishing
-    if (!post.ig_text || post.ig_text.trim().length === 0) {
+    // Validate platform is Instagram
+    if (!post.platform || !post.platform.toLowerCase().includes('instagram')) {
       return NextResponse.json(
-        { error: 'Instagram text is missing or empty' },
+        { error: 'This post is not configured for Instagram (platform must be "instagram")' },
         { status: 400 }
       )
     }
 
+    // Validate status is not already published
+    if (post.status === 'published') {
+      return NextResponse.json(
+        { error: 'This post has already been published' },
+        { status: 400 }
+      )
+    }
+
+    // Validate required fields
     if (!post.image_url || post.image_url.trim().length === 0) {
       return NextResponse.json(
         { error: 'Image URL is missing or empty' },
@@ -91,31 +100,23 @@ export async function POST(
 
     if (!post.url || post.url.trim().length === 0) {
       return NextResponse.json(
-        { error: 'Article URL is missing or empty' },
+        { error: 'URL is missing or empty' },
         { status: 400 }
       )
     }
 
-    // Check if already posted
-    if (post.ig_posted) {
+    // Build caption: use suggested_text if present, otherwise fall back to title
+    let caption = post.suggested_text?.trim() || post.title?.trim() || ''
+
+    if (caption.length === 0) {
       return NextResponse.json(
-        { error: 'This post has already been published to Instagram' },
+        { error: 'Post has no text content (suggested_text or title is required)' },
         { status: 400 }
       )
     }
 
-    // Build final caption: combine ig_text, URL, and hashtags
-    let caption = post.ig_text.trim()
-
-    // Append article URL
-    if (post.url) {
-      caption += `\n\n${post.url}`
-    }
-
-    // Append hashtags if available
-    if (post.hashtags && post.hashtags.trim().length > 0) {
-      caption += `\n\n${post.hashtags.trim()}`
-    }
+    // Append article URL at the end
+    caption += `\n\n${post.url}`
 
     // Step 1: Create media container
     const createMediaUrl = `https://graph.facebook.com/v21.0/${instagramAccountId}/media`
@@ -191,9 +192,9 @@ export async function POST(
     const instagramPostId = publishMediaData.id
     console.log('[INSTAGRAM PUBLISH] Successfully published to Instagram:', instagramPostId)
 
-    // Step 3: Update database - mark as posted
+    // Step 3: Update database - set status to "published"
     const updatedPost = await updateSocialPost(id, {
-      ig_posted: true,
+      status: 'published',
     })
 
     if (!updatedPost) {
@@ -221,4 +222,3 @@ export async function POST(
     )
   }
 }
-

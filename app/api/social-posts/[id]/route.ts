@@ -86,15 +86,14 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
 
-    // Validate allowed fields
+    // Validate allowed fields (matching actual schema)
     const allowedFields = [
-      'fb_posted',
-      'ig_posted',
-      'threads_posted',
-      'fb_text',
-      'ig_text',
-      'threads_text',
-      'hashtags',
+      'status',
+      'suggested_text',
+      'title',
+      'url',
+      'image_url',
+      'platform',
     ]
 
     const updates: Record<string, unknown> = {}

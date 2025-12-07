@@ -48,14 +48,11 @@ export async function sendSocialPostEmailNotification(
   const subject = `New social post prepared: ${socialPost.title}`
 
   // Preview text (first 200 chars)
-  const fbPreview =
-    socialPost.fb_text.length > 200
-      ? socialPost.fb_text.slice(0, 197) + '...'
-      : socialPost.fb_text
-  const igPreview =
-    socialPost.ig_text.length > 200
-      ? socialPost.ig_text.slice(0, 197) + '...'
-      : socialPost.ig_text
+  const textPreview = socialPost.suggested_text
+    ? socialPost.suggested_text.length > 200
+      ? socialPost.suggested_text.slice(0, 197) + '...'
+      : socialPost.suggested_text
+    : socialPost.title
 
   const htmlBody = `
 <!DOCTYPE html>
@@ -78,28 +75,23 @@ export async function sendSocialPostEmailNotification(
       <h1 style="margin: 0;">New Social Post Prepared</h1>
     </div>
     <div class="content">
-      <p>A new social media post has been prepared for the following article:</p>
+      <p>A new social media post has been prepared:</p>
       
       <h2>${socialPost.title}</h2>
+      <p><strong>Platform:</strong> ${socialPost.platform}</p>
+      <p><strong>Status:</strong> ${socialPost.status}</p>
       <p><strong>URL:</strong> <a href="${socialPost.url}">${socialPost.url}</a></p>
       
       <div class="preview-box">
-        <h3>Facebook Post Preview:</h3>
-        <p style="white-space: pre-wrap;">${fbPreview}</p>
+        <h3>Suggested Text:</h3>
+        <p style="white-space: pre-wrap;">${textPreview}</p>
       </div>
-      
-      <div class="preview-box">
-        <h3>Instagram Post Preview:</h3>
-        <p style="white-space: pre-wrap;">${igPreview}</p>
-      </div>
-      
-      <p><strong>Hashtags:</strong> ${socialPost.hashtags}</p>
       
       <a href="${adminUrl}" class="button">Open in Admin Panel</a>
     </div>
     <div class="footer">
       <p>This is an automated notification from NewsTodayForYou.</p>
-      <p>Article ID: ${socialPost.article_id} | Post ID: ${socialPost.id}</p>
+      <p>Post ID: ${socialPost.id}</p>
     </div>
   </div>
 </body>
@@ -109,24 +101,21 @@ export async function sendSocialPostEmailNotification(
   const textBody = `
 New Social Post Prepared
 
-A new social media post has been prepared for the following article:
+A new social media post has been prepared:
 
 Title: ${socialPost.title}
+Platform: ${socialPost.platform}
+Status: ${socialPost.status}
 URL: ${socialPost.url}
 
-Facebook Post Preview:
-${fbPreview}
-
-Instagram Post Preview:
-${igPreview}
-
-Hashtags: ${socialPost.hashtags}
+Suggested Text:
+${textPreview}
 
 Open in Admin Panel: ${adminUrl}
 
 ---
 This is an automated notification from NewsTodayForYou.
-Article ID: ${socialPost.article_id} | Post ID: ${socialPost.id}
+Post ID: ${socialPost.id}
   `.trim()
 
   // If SMTP is not configured, log the email instead

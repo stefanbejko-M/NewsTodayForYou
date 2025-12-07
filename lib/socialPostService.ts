@@ -1,21 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
-import { generateSocialPostTexts, type ArticleData, type SocialPostTexts } from './socialPostGenerator'
-import { sendSocialPostEmailNotification } from './emailService'
 
+/**
+ * Social post type matching the actual database schema
+ */
 export type SocialPost = {
   id: string
-  article_id: number
-  slug: string
   title: string
   url: string
-  fb_text: string
-  ig_text: string
-  threads_text: string
-  hashtags: string
   image_url: string | null
-  fb_posted: boolean
-  ig_posted: boolean
-  threads_posted: boolean
+  platform: 'instagram' | 'facebook' | 'threads' | string
+  status: 'pending' | 'published' | 'failed' | string
+  suggested_text: string | null
   created_at: string
   updated_at: string
 }
@@ -31,126 +26,13 @@ function getSupabaseClient() {
 }
 
 /**
- * Ensure imageUrl is a fully qualified URL
- */
-function ensureFullImageUrl(imageUrl: string | null | undefined): string | null {
-  if (!imageUrl || typeof imageUrl !== 'string') {
-    return null
-  }
-
-  // If already a full URL, return as-is
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl
-  }
-
-  // If relative, prepend site URL
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
-  try {
-    return new URL(imageUrl, baseUrl).toString()
-  } catch {
-    return null
-  }
-}
-
-/**
- * Create or retrieve social post for an article
- */
-export async function createSocialPostForArticle(
-  article: ArticleData
-): Promise<SocialPost> {
-  const supabase = getSupabaseClient()
-
-  // Check if social post already exists for this article
-  const { data: existing } = await supabase
-    .from('social_post')
-    .select('*')
-    .eq('article_id', article.id)
-    .maybeSingle()
-
-  if (existing) {
-    console.log('[SOCIAL POST] Found existing post for article:', article.id)
-    return existing as SocialPost
-  }
-
-  // Generate social post texts
-  console.log('[SOCIAL POST] Generating texts for article:', article.id)
-  const texts = await generateSocialPostTexts(article)
-
-  // Determine image URL
-  const imageUrl = ensureFullImageUrl(article.imageUrl) || null
-
-  // Build full article URL
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
-  const articleUrl = `${baseUrl}/news/${article.slug}`
-
-  // Insert new social post
-  const { data: newPost, error } = await supabase
-    .from('social_post')
-    .insert({
-      article_id: article.id,
-      slug: article.slug,
-      title: article.title,
-      url: articleUrl,
-      fb_text: texts.fbText,
-      ig_text: texts.igText,
-      threads_text: texts.threadsText,
-      hashtags: texts.hashtags,
-      image_url: imageUrl,
-      fb_posted: false,
-      ig_posted: false,
-      threads_posted: false,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('[SOCIAL POST] Error creating post:', error)
-    throw new Error(`Failed to create social post: ${error.message}`)
-  }
-
-  console.log('[SOCIAL POST] Created new post:', newPost.id)
-
-  // Send email notification (only for new posts)
-  try {
-    await sendSocialPostEmailNotification(newPost as SocialPost)
-  } catch (emailError) {
-    // Don't fail the whole operation if email fails
-    console.error('[SOCIAL POST] Email notification failed:', emailError)
-  }
-
-  return newPost as SocialPost
-}
-
-/**
- * Get social post by article ID
- */
-export async function getSocialPostByArticleId(
-  articleId: number
-): Promise<SocialPost | null> {
-  const supabase = getSupabaseClient()
-
-  const { data, error } = await supabase
-    .from('social_post')
-    .select('*')
-    .eq('article_id', articleId)
-    .maybeSingle()
-
-  if (error) {
-    console.error('[SOCIAL POST] Error fetching post:', error)
-    return null
-  }
-
-  return data as SocialPost | null
-}
-
-/**
  * Get social post by ID
  */
 export async function getSocialPostById(id: string): Promise<SocialPost | null> {
   const supabase = getSupabaseClient()
 
   const { data, error } = await supabase
-    .from('social_post')
+    .from('social_posts')
     .select('*')
     .eq('id', id)
     .maybeSingle()
@@ -169,19 +51,18 @@ export async function getSocialPostById(id: string): Promise<SocialPost | null> 
 export async function updateSocialPost(
   id: string,
   updates: {
-    fb_posted?: boolean
-    ig_posted?: boolean
-    threads_posted?: boolean
-    fb_text?: string
-    ig_text?: string
-    threads_text?: string
-    hashtags?: string
+    status?: string
+    suggested_text?: string
+    title?: string
+    url?: string
+    image_url?: string | null
+    platform?: string
   }
 ): Promise<SocialPost | null> {
   const supabase = getSupabaseClient()
 
   const { data, error } = await supabase
-    .from('social_post')
+    .from('social_posts')
     .update(updates)
     .eq('id', id)
     .select()
@@ -205,11 +86,11 @@ export async function listSocialPosts(options: {
 }): Promise<SocialPost[]> {
   const supabase = getSupabaseClient()
 
-  let query = supabase.from('social_post').select('*')
+  let query = supabase.from('social_posts').select('*')
 
-  // Filter by posted status
+  // Filter by status: "unposted" means status !== "published"
   if (options.status === 'unposted') {
-    query = query.or('fb_posted.eq.false,ig_posted.eq.false,threads_posted.eq.false')
+    query = query.neq('status', 'published')
   }
 
   // Order by created_at DESC
@@ -232,4 +113,3 @@ export async function listSocialPosts(options: {
 
   return (data || []) as SocialPost[]
 }
-

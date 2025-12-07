@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 import { getFinalCategorySlug } from '../../../../lib/categoryClassifier'
-import { createSocialPostForArticle } from '@/lib/socialPostService'
+// import { createSocialPostForArticle } from '@/lib/socialPostService' // Removed - function no longer exists with new schema
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -612,26 +612,15 @@ export async function GET(request: NextRequest) {
             inserted++
             console.log('[DEBUG] INSERT OK:', rewritten.new_slug, 'ID:', insertResult.id)
 
-            // Create social post (prepared content, not auto-posting)
+            // TODO: Create social post using new schema (social_posts table)
+            // The old createSocialPostForArticle function no longer exists.
+            // Social posts should be created manually in admin panel for now.
             try {
-              const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
-              const articleUrl = `${baseUrl}/news/${rewritten.new_slug}`
-
-              await createSocialPostForArticle({
-                id: insertResult.id,
-                slug: rewritten.new_slug,
-                title: rewritten.new_title,
-                body: rewritten.new_content,
-                excerpt: rewritten.new_excerpt || null,
-                imageUrl: imageUrl ?? null,
-                category: categorySlug,
-                sourceName: sourceName,
-                url: articleUrl,
-              })
-              console.log('[SOCIAL] Created social post for article:', rewritten.new_slug)
+              // Placeholder for future social post creation with new schema
+              console.log('[SOCIAL] Social post creation temporarily disabled for article:', rewritten.new_slug)
             } catch (err) {
               // Don't block ingestion if social post creation fails
-              console.error('[SOCIAL] Error creating social post:', {
+              console.error('[SOCIAL] Error (social post creation disabled):', {
                 slug: rewritten.new_slug,
                 error: err instanceof Error ? err.message : String(err),
               })

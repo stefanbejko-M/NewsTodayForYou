@@ -5,18 +5,12 @@ import { useSearchParams } from 'next/navigation'
 
 type SocialPost = {
   id: string
-  article_id: number
-  slug: string
   title: string
   url: string
-  fb_text: string
-  ig_text: string
-  threads_text: string
-  hashtags: string
   image_url: string | null
-  fb_posted: boolean
-  ig_posted: boolean
-  threads_posted: boolean
+  platform: string
+  status: string
+  suggested_text: string | null
   created_at: string
   updated_at: string
 }
@@ -30,7 +24,7 @@ export default function AdminSocialPostsPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'unposted'>('unposted')
   const [saving, setSaving] = useState(false)
-  const [publishing, setPublishing] = useState<string | null>(null) // Track which post is being published
+  const [publishing, setPublishing] = useState<string | null>(null)
 
   // Get token from URL or localStorage
   useEffect(() => {
@@ -189,7 +183,7 @@ export default function AdminSocialPostsPage() {
       }
 
       // Update the post in the list and selected post
-      const updatedPost = data.post || { ...posts.find((p) => p.id === postId), ig_posted: true }
+      const updatedPost = data.post || { ...posts.find((p) => p.id === postId), status: 'published' }
       setPosts((prev) => prev.map((p) => (p.id === postId ? updatedPost : p)))
 
       if (selectedPost?.id === postId) {
@@ -308,6 +302,9 @@ export default function AdminSocialPostsPage() {
                       Title
                     </th>
                     <th style={{ padding: '12px', textAlign: 'center', fontSize: '14px', fontWeight: '600' }}>
+                      Platform
+                    </th>
+                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '14px', fontWeight: '600' }}>
                       Status
                     </th>
                     <th style={{ padding: '12px', textAlign: 'center', fontSize: '14px', fontWeight: '600' }}>
@@ -332,11 +329,25 @@ export default function AdminSocialPostsPage() {
                       <td style={{ padding: '12px', fontSize: '14px' }}>
                         {post.title.length > 50 ? post.title.slice(0, 50) + '...' : post.title}
                       </td>
+                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '12px', textTransform: 'capitalize' }}>
+                        {post.platform}
+                      </td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <span style={{ fontSize: '12px' }}>
-                          {post.fb_posted ? '✓' : '○'} FB{' '}
-                          {post.ig_posted ? '✓' : '○'} IG{' '}
-                          {post.threads_posted ? '✓' : '○'} TH
+                        <span
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            backgroundColor:
+                              post.status === 'published'
+                                ? '#10b981'
+                                : post.status === 'failed'
+                                ? '#ef4444'
+                                : '#f59e0b',
+                            color: 'white',
+                          }}
+                        >
+                          {post.status}
                         </span>
                       </td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>
@@ -358,27 +369,28 @@ export default function AdminSocialPostsPage() {
                           >
                             View
                           </button>
-                          {!post.ig_posted && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                publishToInstagram(post.id)
-                              }}
-                              disabled={publishing === post.id}
-                              style={{
-                                padding: '6px 12px',
-                                backgroundColor: publishing === post.id ? '#9ca3af' : '#e91e63',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: publishing === post.id ? 'not-allowed' : 'pointer',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                              }}
-                            >
-                              {publishing === post.id ? '...' : 'Publish IG'}
-                            </button>
-                          )}
+                          {post.platform?.toLowerCase().includes('instagram') &&
+                            post.status !== 'published' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  publishToInstagram(post.id)
+                                }}
+                                disabled={publishing === post.id}
+                                style={{
+                                  padding: '6px 12px',
+                                  backgroundColor: publishing === post.id ? '#9ca3af' : '#e91e63',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: publishing === post.id ? 'not-allowed' : 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                }}
+                              >
+                                {publishing === post.id ? '...' : 'Publish IG'}
+                              </button>
+                            )}
                         </div>
                       </td>
                     </tr>
@@ -409,6 +421,28 @@ export default function AdminSocialPostsPage() {
                   </a>
                 </p>
 
+                <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>
+                    <strong>Platform:</strong> {selectedPost.platform}
+                  </span>
+                  <span
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      backgroundColor:
+                        selectedPost.status === 'published'
+                          ? '#10b981'
+                          : selectedPost.status === 'failed'
+                          ? '#ef4444'
+                          : '#f59e0b',
+                      color: 'white',
+                    }}
+                  >
+                    {selectedPost.status}
+                  </span>
+                </div>
+
                 {selectedPost.image_url && (
                   <div style={{ marginBottom: '20px' }}>
                     <img
@@ -419,50 +453,17 @@ export default function AdminSocialPostsPage() {
                   </div>
                 )}
 
-                {/* Facebook Text */}
+                {/* Suggested Text */}
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                    Facebook Post:
+                    Suggested Text:
                   </label>
                   <textarea
-                    value={selectedPost.fb_text}
-                    onChange={(e) => setSelectedPost({ ...selectedPost, fb_text: e.target.value })}
-                    rows={4}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid var(--border)',
-                      borderRadius: '6px',
-                      fontFamily: 'monospace',
-                      fontSize: '14px',
-                    }}
-                  />
-                  <button
-                    onClick={() => copyToClipboard(selectedPost.fb_text)}
-                    style={{
-                      marginTop: '8px',
-                      padding: '8px 16px',
-                      backgroundColor: '#10b981',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                    }}
-                  >
-                    Copy Facebook Text
-                  </button>
-                </div>
-
-                {/* Instagram Text */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                    Instagram Post:
-                  </label>
-                  <textarea
-                    value={selectedPost.ig_text}
-                    onChange={(e) => setSelectedPost({ ...selectedPost, ig_text: e.target.value })}
-                    rows={4}
+                    value={selectedPost.suggested_text || ''}
+                    onChange={(e) =>
+                      setSelectedPost({ ...selectedPost, suggested_text: e.target.value })
+                    }
+                    rows={6}
                     style={{
                       width: '100%',
                       padding: '12px',
@@ -474,7 +475,7 @@ export default function AdminSocialPostsPage() {
                   />
                   <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                     <button
-                      onClick={() => copyToClipboard(selectedPost.ig_text)}
+                      onClick={() => copyToClipboard(selectedPost.suggested_text || '')}
                       style={{
                         padding: '8px 16px',
                         backgroundColor: '#10b981',
@@ -485,27 +486,28 @@ export default function AdminSocialPostsPage() {
                         fontSize: '14px',
                       }}
                     >
-                      Copy Instagram Text
+                      Copy Text
                     </button>
-                    {!selectedPost.ig_posted && (
-                      <button
-                        onClick={() => publishToInstagram(selectedPost.id)}
-                        disabled={publishing === selectedPost.id}
-                        style={{
-                          padding: '8px 16px',
-                          backgroundColor: publishing === selectedPost.id ? '#9ca3af' : '#e91e63',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: publishing === selectedPost.id ? 'not-allowed' : 'pointer',
-                          fontSize: '14px',
-                          fontWeight: '600',
-                        }}
-                      >
-                        {publishing === selectedPost.id ? 'Publishing...' : 'Publish to Instagram'}
-                      </button>
-                    )}
-                    {selectedPost.ig_posted && (
+                    {selectedPost.platform?.toLowerCase().includes('instagram') &&
+                      selectedPost.status !== 'published' && (
+                        <button
+                          onClick={() => publishToInstagram(selectedPost.id)}
+                          disabled={publishing === selectedPost.id}
+                          style={{
+                            padding: '8px 16px',
+                            backgroundColor: publishing === selectedPost.id ? '#9ca3af' : '#e91e63',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: publishing === selectedPost.id ? 'not-allowed' : 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          {publishing === selectedPost.id ? 'Publishing...' : 'Publish to Instagram'}
+                        </button>
+                      )}
+                    {selectedPost.status === 'published' && (
                       <span
                         style={{
                           padding: '8px 16px',
@@ -522,52 +524,18 @@ export default function AdminSocialPostsPage() {
                   </div>
                 </div>
 
-                {/* Threads Text */}
+                {/* Status Update */}
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                    Threads Post:
+                    Status:
                   </label>
-                  <textarea
-                    value={selectedPost.threads_text}
-                    onChange={(e) =>
-                      setSelectedPost({ ...selectedPost, threads_text: e.target.value })
-                    }
-                    rows={3}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid var(--border)',
-                      borderRadius: '6px',
-                      fontFamily: 'monospace',
-                      fontSize: '14px',
+                  <select
+                    value={selectedPost.status}
+                    onChange={(e) => {
+                      const updated = { ...selectedPost, status: e.target.value }
+                      setSelectedPost(updated)
+                      updatePost({ status: e.target.value })
                     }}
-                  />
-                  <button
-                    onClick={() => copyToClipboard(selectedPost.threads_text)}
-                    style={{
-                      marginTop: '8px',
-                      padding: '8px 16px',
-                      backgroundColor: '#10b981',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                    }}
-                  >
-                    Copy Threads Text
-                  </button>
-                </div>
-
-                {/* Hashtags */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                    Hashtags:
-                  </label>
-                  <input
-                    type="text"
-                    value={selectedPost.hashtags}
-                    onChange={(e) => setSelectedPost({ ...selectedPost, hashtags: e.target.value })}
                     style={{
                       width: '100%',
                       padding: '12px',
@@ -575,77 +543,21 @@ export default function AdminSocialPostsPage() {
                       borderRadius: '6px',
                       fontSize: '14px',
                     }}
-                  />
-                  <button
-                    onClick={() => copyToClipboard(selectedPost.hashtags)}
-                    style={{
-                      marginTop: '8px',
-                      padding: '8px 16px',
-                      backgroundColor: '#10b981',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                    }}
                   >
-                    Copy Hashtags
-                  </button>
-                </div>
-
-                {/* Posted Status */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                    Posted Status:
-                  </label>
-                  <div style={{ display: 'flex', gap: '16px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedPost.fb_posted}
-                        onChange={(e) => {
-                          const updated = { ...selectedPost, fb_posted: e.target.checked }
-                          setSelectedPost(updated)
-                          updatePost({ fb_posted: e.target.checked })
-                        }}
-                      />
-                      Facebook Posted
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedPost.ig_posted}
-                        onChange={(e) => {
-                          const updated = { ...selectedPost, ig_posted: e.target.checked }
-                          setSelectedPost(updated)
-                          updatePost({ ig_posted: e.target.checked })
-                        }}
-                      />
-                      Instagram Posted
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedPost.threads_posted}
-                        onChange={(e) => {
-                          const updated = { ...selectedPost, threads_posted: e.target.checked }
-                          setSelectedPost(updated)
-                          updatePost({ threads_posted: e.target.checked })
-                        }}
-                      />
-                      Threads Posted
-                    </label>
-                  </div>
+                    <option value="pending">Pending</option>
+                    <option value="published">Published</option>
+                    <option value="failed">Failed</option>
+                  </select>
                 </div>
 
                 {/* Save Button */}
                 <button
                   onClick={() => {
                     updatePost({
-                      fb_text: selectedPost.fb_text,
-                      ig_text: selectedPost.ig_text,
-                      threads_text: selectedPost.threads_text,
-                      hashtags: selectedPost.hashtags,
+                      suggested_text: selectedPost.suggested_text,
+                      title: selectedPost.title,
+                      url: selectedPost.url,
+                      image_url: selectedPost.image_url,
                     })
                   }}
                   disabled={saving}
@@ -675,4 +587,3 @@ export default function AdminSocialPostsPage() {
     </div>
   )
 }
-

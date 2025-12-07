@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createSocialPostForArticle } from '@/lib/socialPostService'
+// import { createSocialPostForArticle } from '@/lib/socialPostService' // Removed - function no longer exists with new schema
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -55,35 +55,17 @@ export async function GET(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
     const articleUrl = `${baseUrl}/news/${data.slug}`
 
-    // Create social post (prepared content, not auto-posting)
-    const socialPost = await createSocialPostForArticle({
-      id: data.id,
-      slug: data.slug || '',
-      title: data.title || 'Untitled',
-      body: data.body || '',
-      excerpt: data.excerpt || null,
-      imageUrl: data.image_url || null,
-      category: categorySlug,
-      sourceName: data.source_name || null,
-      url: articleUrl,
-    })
+    // TODO: Create social post using new schema (social_posts table)
+    // The old createSocialPostForArticle function no longer exists.
+    // For now, return article info - social posts should be created manually in admin panel.
 
     return NextResponse.json({
       ok: true,
-      message: 'Social post prepared (not auto-posted). Use admin panel to copy and post manually.',
+      message: 'Social post creation temporarily disabled. Use admin panel to create posts manually.',
       articleId: data.id,
       slug: data.slug,
       title: data.title,
-      socialPost: {
-        id: socialPost.id,
-        fbText: socialPost.fb_text.substring(0, 100) + '...',
-        igText: socialPost.ig_text.substring(0, 100) + '...',
-        threadsText: socialPost.threads_text.substring(0, 100) + '...',
-        hashtags: socialPost.hashtags,
-        fbPosted: socialPost.fb_posted,
-        igPosted: socialPost.ig_posted,
-        threadsPosted: socialPost.threads_posted,
-      },
+      url: articleUrl,
     })
   } catch (error) {
     console.error('[DEBUG POST SOCIAL] Unexpected error:', error)
