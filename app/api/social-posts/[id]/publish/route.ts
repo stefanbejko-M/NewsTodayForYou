@@ -181,30 +181,37 @@ export async function POST(
 
     const createMediaData = await createMediaResponse.json()
 
-    if (!createMediaResponse.ok || createMediaData.error) {
-      const errorMessage = createMediaData.error?.message || 'Failed to create media container'
-      const errorCode = createMediaData.error?.code
-      const errorType = createMediaData.error?.type
-      const errorSubcode = createMediaData.error?.error_subcode
-
-      console.error('[INSTAGRAM PUBLISH] Create media error:', {
-        message: errorMessage,
-        code: errorCode,
-        type: errorType,
-        subcode: errorSubcode,
-        fullError: createMediaData.error,
-        responseStatus: createMediaResponse.status,
+    if (!createMediaResponse.ok) {
+      console.error('[INSTAGRAM PUBLISH] Create media error (non-OK response):', {
+        status: createMediaResponse.status,
         responseBody: createMediaData,
       })
 
       return NextResponse.json(
         {
-          error: `Instagram API error: ${errorMessage}`,
-          details: {
-            code: errorCode,
-            type: errorType,
-            subcode: errorSubcode,
-            fullError: createMediaData.error,
+          error: `Instagram /media error (status ${createMediaResponse.status})`,
+          stage: 'media',
+          instagramError: createMediaData,
+          request: {
+            image_url: finalImageUrl,
+            hasLocationId: false, // No location_id support currently
+          },
+        },
+        { status: 500 }
+      )
+    }
+
+    if (createMediaData.error) {
+      console.error('[INSTAGRAM PUBLISH] Create media error (error in response):', createMediaData.error)
+
+      return NextResponse.json(
+        {
+          error: `Instagram /media error (status ${createMediaResponse.status})`,
+          stage: 'media',
+          instagramError: createMediaData,
+          request: {
+            image_url: finalImageUrl,
+            hasLocationId: false,
           },
         },
         { status: 500 }
@@ -213,8 +220,18 @@ export async function POST(
 
     const creationId = createMediaData.id
     if (!creationId) {
+      console.error('[INSTAGRAM PUBLISH] Create media response missing id:', createMediaData)
+
       return NextResponse.json(
-        { error: 'Instagram API did not return a creation ID' },
+        {
+          error: 'Instagram /media response did not contain an id',
+          stage: 'media',
+          instagramError: createMediaData,
+          request: {
+            image_url: finalImageUrl,
+            hasLocationId: false,
+          },
+        },
         { status: 500 }
       )
     }
@@ -239,37 +256,49 @@ export async function POST(
 
     const publishMediaData = await publishMediaResponse.json()
 
-    if (!publishMediaResponse.ok || publishMediaData.error) {
-      const errorMessage = publishMediaData.error?.message || 'Failed to publish media'
-      const errorCode = publishMediaData.error?.code
-      const errorType = publishMediaData.error?.type
-      const errorSubcode = publishMediaData.error?.error_subcode
-
-      console.error('[INSTAGRAM PUBLISH] Publish media error:', {
-        message: errorMessage,
-        code: errorCode,
-        type: errorType,
-        subcode: errorSubcode,
-        fullError: publishMediaData.error,
-        responseStatus: publishMediaResponse.status,
+    if (!publishMediaResponse.ok) {
+      console.error('[INSTAGRAM PUBLISH] Publish media error (non-OK response):', {
+        status: publishMediaResponse.status,
         responseBody: publishMediaData,
       })
 
       return NextResponse.json(
         {
-          error: `Instagram API error: ${errorMessage}`,
-          details: {
-            code: errorCode,
-            type: errorType,
-            subcode: errorSubcode,
-            fullError: publishMediaData.error,
-          },
+          error: `Instagram /media_publish error (status ${publishMediaResponse.status})`,
+          stage: 'media_publish',
+          instagramError: publishMediaData,
+        },
+        { status: 500 }
+      )
+    }
+
+    if (publishMediaData.error) {
+      console.error('[INSTAGRAM PUBLISH] Publish media error (error in response):', publishMediaData.error)
+
+      return NextResponse.json(
+        {
+          error: `Instagram /media_publish error (status ${publishMediaResponse.status})`,
+          stage: 'media_publish',
+          instagramError: publishMediaData,
         },
         { status: 500 }
       )
     }
 
     const instagramPostId = publishMediaData.id
+    if (!instagramPostId) {
+      console.error('[INSTAGRAM PUBLISH] Publish media response missing id:', publishMediaData)
+
+      return NextResponse.json(
+        {
+          error: 'Instagram /media_publish response did not contain an id',
+          stage: 'media_publish',
+          instagramError: publishMediaData,
+        },
+        { status: 500 }
+      )
+    }
+
     console.log('[INSTAGRAM PUBLISH] Successfully published to Instagram:', instagramPostId)
 
     // Step 3: Update database - set status to "published"

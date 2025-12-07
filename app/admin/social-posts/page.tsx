@@ -236,7 +236,18 @@ export default function AdminSocialPostsPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to publish to Instagram')
+        // Extract detailed Instagram error message
+        const details =
+          data.instagramError?.error?.message ||
+          data.instagramError?.message ||
+          (data.instagramError ? JSON.stringify(data.instagramError) : null)
+
+        const errorMessage = data.error || 'Failed to publish to Instagram'
+        const fullMessage = details
+          ? `Failed to publish:\n${errorMessage}\n\nInstagram says: ${details}`
+          : `Failed to publish:\n${errorMessage}`
+
+        throw new Error(fullMessage)
       }
 
       // Update the post in the list and selected post
