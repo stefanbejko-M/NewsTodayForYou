@@ -139,6 +139,7 @@ export async function POST(
     }
 
     // Build base caption: use suggested_text if present, otherwise fall back to title
+    // baseCaption already includes the English AI text and hashtags
     const baseCaption = post.suggested_text?.trim() || post.title?.trim() || ''
 
     if (baseCaption.length === 0) {
@@ -148,8 +149,20 @@ export async function POST(
       )
     }
 
-    // Final caption always includes the article URL on a new line at the end
-    const caption = `${baseCaption}\n\n${post.url}`
+    // Build final caption with explicit format:
+    // <AI text + hashtags>
+    // Location: <location_name> (if present)
+    // Read more: <url>
+    let caption = baseCaption
+
+    // If we have a location_name, add a "Location:" line
+    const locationName = (post as any).location_name
+    if (locationName && typeof locationName === 'string' && locationName.trim().length > 0) {
+      caption += `\n\nLocation: ${locationName.trim()}`
+    }
+
+    // Always append the URL as "Read more: <url>"
+    caption += `\n\nRead more: ${post.url}`
 
     // Step 1: Create media container
     // For image posts, we only send: image_url (proxied), caption, and access_token
