@@ -33,6 +33,22 @@ function isAuthorized(request: NextRequest): boolean {
 }
 
 /**
+ * Build Instagram image proxy URL
+ * Proxies the original image through our domain so Instagram can fetch it
+ */
+function buildInstagramImageUrl(originalUrl: string): string {
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
+
+  if (!siteUrl) {
+    throw new Error('SITE_URL or NEXT_PUBLIC_SITE_URL env var is required for Instagram image proxy.')
+  }
+
+  const url = new URL('/api/instagram-image', siteUrl)
+  url.searchParams.set('src', originalUrl)
+  return url.toString()
+}
+
+/**
  * POST /api/social-posts/[id]/publish
  * Publish a social post to Instagram
  */
@@ -93,28 +109,26 @@ export async function POST(
     // Validate required fields
     if (!post.image_url || post.image_url.trim().length === 0) {
       return NextResponse.json(
-        { error: 'Image URL is missing or empty' },
+        { error: 'Post has no image_url, cannot publish to Instagram' },
         { status: 400 }
       )
     }
 
-    // Validate image_url is a direct image URL (not an HTML page)
-    const imageUrl = post.image_url.trim()
-    const imageUrlLower = imageUrl.toLowerCase()
-    const isDirectImage =
-      imageUrlLower.endsWith('.jpg') ||
-      imageUrlLower.endsWith('.jpeg') ||
-      imageUrlLower.endsWith('.png') ||
-      imageUrlLower.endsWith('.gif') ||
-      imageUrlLower.endsWith('.webp') ||
-      imageUrl.includes('?') // Some CDNs serve images with query params
+    // Build proxied image URL for Instagram
+    // Instagram will fetch the image from our proxy endpoint, which downloads it from the original source
+    const originalImageUrl = post.image_url.trim()
+    let finalImageUrl: string
 
-    if (!isDirectImage) {
-      console.warn(
-        '[INSTAGRAM PUBLISH] Image URL may not be a direct image link:',
-        imageUrl
+    try {
+      finalImageUrl = buildInstagramImageUrl(originalImageUrl)
+      console.log('[INSTAGRAM PUBLISH] Original image URL:', originalImageUrl)
+      console.log('[INSTAGRAM PUBLISH] Proxied image URL:', finalImageUrl)
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      return NextResponse.json(
+        { error: `Failed to build image proxy URL: ${errorMsg}` },
+        { status: 500 }
       )
-      // Continue anyway, but log a warning
     }
 
     if (!post.url || post.url.trim().length === 0) {
@@ -138,11 +152,11 @@ export async function POST(
     const caption = `${baseCaption}\n\n${post.url}`
 
     // Step 1: Create media container
-    // For image posts, we only send: image_url, caption, and access_token
+    // For image posts, we only send: image_url (proxied), caption, and access_token
     // Do NOT send media_type - Instagram API infers it automatically from image_url
     const createMediaUrl = `https://graph.facebook.com/v21.0/${instagramAccountId}/media`
     const createMediaParams = new URLSearchParams({
-      image_url: imageUrl,
+      image_url: finalImageUrl, // Use proxied URL so Instagram fetches from our domain
       caption: caption,
       access_token: instagramAccessToken,
     })
@@ -151,7 +165,7 @@ export async function POST(
     console.log('[INSTAGRAM PUBLISH] Creating media container...')
     console.log('[INSTAGRAM PUBLISH] Request URL:', createMediaUrl)
     console.log('[INSTAGRAM PUBLISH] Request params:', {
-      image_url: imageUrl,
+      image_url: finalImageUrl,
       caption: caption.substring(0, 100) + '...',
       access_token: '***REDACTED***',
     })
