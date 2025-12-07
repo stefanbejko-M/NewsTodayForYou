@@ -30,52 +30,62 @@ function getOpenAIClient(): OpenAI {
 
 /**
  * Generate Instagram suggested_text for social posts table
- * This generates a Macedonian Instagram caption with hashtags (no URL)
+ * This generates an English Instagram caption with hashtags (no URL)
+ * Targeted for US/CA/UK/AU markets
  */
 export async function generateInstagramSuggestedText(
   article: ArticleData
 ): Promise<string> {
   const openai = getOpenAIClient()
 
-  // Build base hashtags based on category
+  // Build base hashtags based on category (English)
   const hashtags: string[] = ['#NewsTodayForYou']
   if (article.category) {
     const categoryLower = article.category.toLowerCase()
     const categoryMap: Record<string, string> = {
-      sports: '#Спорт',
-      politics: '#Политика',
-      'ai-news': '#ВештачкаИнтелигенција',
-      celebrity: '#Знаменитости',
-      games: '#Игри',
-      'daily-highlights': '#ДневниВести',
+      sports: '#Sports',
+      politics: '#Politics',
+      'ai-news': '#AI #TechNews',
+      celebrity: '#Celebrity',
+      games: '#Gaming',
+      'daily-highlights': '#News',
     }
     if (categoryMap[categoryLower]) {
       hashtags.push(categoryMap[categoryLower])
     }
   }
 
-  const prompt = `Ти си креатор на содржини за социјални мрежи. Генерирај привлечен Instagram опис на македонски јазик за вест.
+  // Add market-specific hashtags
+  hashtags.push('#USA', '#Canada', '#UK', '#Australia')
 
-Наслов на веста: ${article.title}
+  const prompt = `You are a professional social media content creator. Generate an engaging Instagram caption in English for a news article.
 
-Резиме на веста: ${article.excerpt || article.body.slice(0, 500)}
+Article Title: ${article.title}
 
-Категорија: ${article.category || 'општо'}
+Article Summary: ${article.excerpt || article.body.slice(0, 500)}
 
-Барања:
+Category: ${article.category || 'general'}
 
-1. Напиши природен Instagram опис на македонски јазик
-2. Користи 2-4 реченици
-3. Бидете визуелни и емоционални
-4. НЕ вклучувај URL на статијата (backend-от ќе го додаде)
-5. ЗАДОЛЖИТЕЛНО заврши со 3-7 релевантни хештегови на нов ред
-6. Хештеговите треба да бидат на македонски или англиски
-7. Максимално 600 карактери (вклучувајќи ги хештеговите)
+${article.sourceName ? `Source: ${article.sourceName}` : ''}
 
-Формат:
-<главен текст>\n\n#хештег1 #хештег2 #хештег3
+Requirements:
 
-Врати САМО текстот, без JSON, без markdown, без објаснувања.`
+1. Write a natural Instagram caption in English (2-4 sentences)
+2. Make it engaging, easy to read, and suitable for an international audience
+3. Write as if speaking to users in the United States, Canada, United Kingdom, and Australia
+4. Be visual and emotional in your language
+5. DO NOT include the article URL (the backend will add it separately)
+6. ALWAYS end with 3-7 relevant English hashtags on a new line
+7. Hashtags should be relevant to the article topic and appropriate for US/CA/UK/AU markets
+8. Maximum ~600 characters (including hashtags)
+9. If the article mentions a specific city or country, you may briefly mention it in the caption
+
+Format:
+<main English text>
+
+#hashtag1 #hashtag2 #hashtag3 #hashtag4
+
+Return ONLY the text, no JSON, no markdown, no explanations.`
 
   try {
     const completion = await openai.chat.completions.create({
@@ -84,7 +94,7 @@ export async function generateInstagramSuggestedText(
         {
           role: 'system',
           content:
-            'Ти си професионален креатор на содржини за Instagram на македонски јазик. Врати САМО текстот, без JSON, без markdown, без објаснувања.',
+            'You are a professional Instagram content creator writing for an international English-speaking audience (US, Canada, UK, Australia). Always return only the text, no JSON, no markdown, no explanations.',
         },
         {
           role: 'user',
@@ -116,7 +126,8 @@ export async function generateInstagramSuggestedText(
     // Ensure hashtags are on a new line (if they're not already)
     if (suggestedText.includes('#') && !suggestedText.includes('\n#')) {
       // Find the last hashtag and ensure it's on a new line
-      const hashtagMatch = suggestedText.match(/#[\wА-Яа-я]+/g)
+      // Updated regex to match English hashtags (alphanumeric and underscore only)
+      const hashtagMatch = suggestedText.match(/#[\w]+/g)
       if (hashtagMatch && hashtagMatch.length > 0) {
         const lastHashtagIndex = suggestedText.lastIndexOf(hashtagMatch[hashtagMatch.length - 1])
         const beforeHashtags = suggestedText.substring(0, lastHashtagIndex).trim()
@@ -129,7 +140,7 @@ export async function generateInstagramSuggestedText(
   } catch (error) {
     console.error('[INSTAGRAM SUGGESTED TEXT] Error generating text:', error)
 
-    // Fallback: generate simple text manually in Macedonian
+    // Fallback: generate simple text manually in English
     const shortSummary = article.excerpt || article.body.slice(0, 150) + '...'
     const fallbackText = `${article.title}\n\n${shortSummary}\n\n${hashtags.join(' ')}`
 
