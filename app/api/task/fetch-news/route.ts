@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
-import { getFinalCategorySlug } from '../../../../lib/categoryClassifier'
+import { getFinalCategorySlugForPost } from '../../../../lib/categoryClassifier'
 // import { createSocialPostForArticle } from '@/lib/socialPostService' // Removed - function no longer exists with new schema
 
 export const dynamic = 'force-dynamic'
@@ -558,13 +558,13 @@ export async function GET(request: NextRequest) {
         // Increment attempted counter after successful OpenAI response
         attempted++
 
-        // Determine final category via deterministic ER + keyword fallback
-        let categorySlug = getFinalCategorySlug(
-          article,
-          typeof rewritten.new_title === 'string' ? rewritten.new_title : '',
-          typeof rewritten.new_content === 'string' ? rewritten.new_content : '',
-          sourceName
-        )
+        // Determine final category via AI-first classifier (with keyword fallback)
+        let categorySlug = await getFinalCategorySlugForPost({
+          title: typeof rewritten.new_title === 'string' ? rewritten.new_title : '',
+          excerpt: typeof rewritten.new_excerpt === 'string' ? rewritten.new_excerpt : null,
+          body: typeof rewritten.new_content === 'string' ? rewritten.new_content : '',
+          source_name: sourceName,
+        })
         // Track stats
         categoryStats[categorySlug] = (categoryStats[categorySlug] || 0) + 1
 
