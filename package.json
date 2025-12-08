@@ -20,7 +20,8 @@
     "nodemailer": "^7.0.11",
     "openai": "^4.104.0",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "sharp": "^0.33.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",

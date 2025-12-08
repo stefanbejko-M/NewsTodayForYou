@@ -83,7 +83,12 @@ export default function AdminSocialPostsPage() {
         }
 
         const data = await response.json()
-        setPosts(data.posts || [])
+        // Filter out posts without valid image_url (Instagram requires images)
+        const allPosts = data.posts || []
+        const validPosts = allPosts.filter(
+          (post: SocialPost) => typeof post.image_url === 'string' && post.image_url.trim().length > 0
+        )
+        setPosts(validPosts)
         setError(null)
 
         // Auto-select post from URL if provided

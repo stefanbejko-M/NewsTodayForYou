@@ -128,11 +128,26 @@ export async function POST(request: NextRequest) {
 
     let generated = 0
     let skipped = 0
+    let skippedNoImage = 0
     const errors: string[] = []
 
     // Process each article
     for (const post of recentPosts) {
       try {
+        // Skip if post doesn't have required fields
+        if (!post.title || !post.slug) {
+          skipped++
+          continue
+        }
+
+        // Skip if article has no image_url (Instagram requires images)
+        const imageUrl = post.image_url?.trim()
+        if (!imageUrl) {
+          skippedNoImage++
+          console.log(`[SOCIAL POSTS GENERATE] Skipping article without image: ${post.title}`)
+          continue
+        }
+
         // Build article URL using URL constructor to ensure it's a single clean string
         // This prevents any newlines or whitespace issues
         const siteUrl = baseUrl.trim()
@@ -140,12 +155,6 @@ export async function POST(request: NextRequest) {
 
         // Skip if social post already exists for this URL
         if (existingUrls.has(articleUrl)) {
-          skipped++
-          continue
-        }
-
-        // Skip if post doesn't have required fields
-        if (!post.title || !post.slug) {
           skipped++
           continue
         }
@@ -170,11 +179,11 @@ export async function POST(request: NextRequest) {
           url: articleUrl,
         })
 
-        // Insert into social_posts table
+        // Insert into social_posts table (imageUrl is guaranteed to be non-empty at this point)
         const { error: insertError } = await supabase.from('social_posts').insert({
           title: post.title,
           url: articleUrl,
-          image_url: post.image_url || null,
+          image_url: imageUrl, // Use the validated imageUrl
           platform: 'instagram',
           status: 'pending',
           suggested_text: suggestedText,
@@ -208,6 +217,7 @@ export async function POST(request: NextRequest) {
       message: `Generated ${generated} Instagram social posts`,
       generated,
       skipped,
+      skippedNoImage,
       total: recentPosts.length,
       errors: errors.length > 0 ? errors : undefined,
     })

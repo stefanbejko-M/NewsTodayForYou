@@ -5,6 +5,8 @@ import { Breadcrumbs } from '@/components/Breadcrumbs'
 
 export const revalidate = 0
 
+const PAGE_SIZE = 20
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
   const client = createClient(
@@ -49,9 +51,19 @@ type Row = {
   image_url?: string | null
 }
 
-export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CategoryPage({ 
+  params, 
+  searchParams 
+}: { 
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ page?: string }>
+}) {
   try {
     const { slug } = await params
+    const urlParams = await searchParams
+    const page = Math.max(1, parseInt(urlParams.page || '1', 10))
+    const offset = (page - 1) * PAGE_SIZE
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
@@ -84,13 +96,13 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       return <div>Category not found.</div>
     }
 
-    // Fetch posts for this category - ONLY posts with matching category_id (no time filter)
-    const { data, error } = await client
+    // Fetch posts for this category with pagination - ONLY posts with matching category_id (no time filter)
+    const { data, error, count } = await client
       .from('post')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('category_id', categoryData.id)
       .order('created_at', { ascending: false })
-      .limit(50)
+      .range(offset, offset + PAGE_SIZE - 1)
     
     if (error) {
       let errorMsg = 'Unknown error'
@@ -126,6 +138,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 
     const categoryName = categoryData.name || slug
 
+    // Calculate pagination
+    const totalPosts = count || 0
+    const totalPages = Math.ceil(totalPosts / PAGE_SIZE)
+    const hasNextPage = page < totalPages
+    const hasPrevPage = page > 1
+
     // Build breadcrumb items
     const breadcrumbItems = [
       { label: 'Home', href: '/' },
@@ -144,33 +162,61 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
             No articles in this category yet. Please check back soon.
           </p>
         ) : (
-          <ul className="article-list">
-            {validPosts.map((p) => (
-              <li key={p.slug} className="article-card">
-                {p.image_url ? (
-                  <a className="article-thumb" href={`/news/${p.slug}`}>
-                    <img className="article-image" src={p.image_url} alt={p.title || ''} loading="lazy" />
-                  </a>
-                ) : null}
-                <div className="article-content">
-                  <h2 className="article-title">
-                    <Link href={`/news/${p.slug}`}>{p.title}</Link>
-                  </h2>
-                  {p.source_name && (
-                    <div className="article-meta"><small>{p.source_name}</small></div>
+          <>
+            <ul className="article-list">
+              {validPosts.map((p) => (
+                <li key={p.slug} className="article-card">
+                  {p.image_url ? (
+                    <a className="article-thumb" href={`/news/${p.slug}`}>
+                      <img className="article-image" src={p.image_url} alt={p.title || ''} loading="lazy" />
+                    </a>
+                  ) : null}
+                  <div className="article-content">
+                    <h2 className="article-title">
+                      <Link href={`/news/${p.slug}`}>{p.title}</Link>
+                    </h2>
+                    {p.source_name && (
+                      <div className="article-meta"><small>{p.source_name}</small></div>
+                    )}
+                    {p.excerpt ? (
+                      <p className="article-excerpt">{p.excerpt}</p>
+                    ) : null}
+                    {p.created_at ? (
+                      <div className="article-meta">
+                        <small>{new Date(p.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</small>
+                      </div>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {/* Pagination controls - using standard <a> tags for SEO */}
+            <nav style={{ marginTop: '2rem', padding: '1rem 0', borderTop: '1px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                <div>
+                  {hasPrevPage ? (
+                    <a href={page === 2 ? `/category/${slug}` : `/category/${slug}?page=${page - 1}`} style={{ padding: '0.5rem 1rem', backgroundColor: '#f3f4f6', borderRadius: '6px', textDecoration: 'none', color: '#1f2937' }}>
+                      ← Previous
+                    </a>
+                  ) : (
+                    <span style={{ padding: '0.5rem 1rem', color: '#9ca3af' }}>← Previous</span>
                   )}
-                  {p.excerpt ? (
-                    <p className="article-excerpt">{p.excerpt}</p>
-                  ) : null}
-                  {p.created_at ? (
-                    <div className="article-meta">
-                      <small>{new Date(p.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</small>
-                    </div>
-                  ) : null}
                 </div>
-              </li>
-            ))}
-          </ul>
+                <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                  Page {page} of {totalPages} ({totalPosts} articles)
+                </div>
+                <div>
+                  {hasNextPage ? (
+                    <a href={`/category/${slug}?page=${page + 1}`} style={{ padding: '0.5rem 1rem', backgroundColor: '#f3f4f6', borderRadius: '6px', textDecoration: 'none', color: '#1f2937' }}>
+                      Next →
+                    </a>
+                  ) : (
+                    <span style={{ padding: '0.5rem 1rem', color: '#9ca3af' }}>Next →</span>
+                  )}
+                </div>
+              </div>
+            </nav>
+          </>
         )}
       </div>
     )
