@@ -5,6 +5,7 @@ export type FinalCategorySlug =
   | 'sports'
   | 'games'
   | 'daily-highlights'
+  | 'world' // fallback general/world news
 
 function collectCategoryStrings(article: any): string[] {
   const out: string[] = []
@@ -76,6 +77,66 @@ export function getFinalCategorySlug(
   if (kwGames.some(k => text.includes(k))) return 'games'
 
   // Step 4: default
+  return 'daily-highlights'
+}
+
+/**
+ * categorizePost - Simple category classifier for posts using title + excerpt
+ * This is used for reclassifying existing posts and can be used for new posts
+ * when Event Registry data is not available.
+ */
+export function categorizePost(post: {
+  title: string
+  excerpt?: string | null
+  source_name?: string | null
+  body?: string | null
+}): FinalCategorySlug {
+  const text = `${post.title || ''} ${post.excerpt || ''} ${post.body || ''} ${post.source_name || ''}`.toLowerCase()
+
+  // Sports keywords - must be strong matches
+  if (
+    /\b(football|soccer|basketball|nba|nfl|mlb|golf|tennis|cricket|f1|formula 1|grand prix|world cup|championship|tournament|match|game|score|goal|win|loss|victory|defeat|coach|team|player|athlete|sport)\b/i.test(text)
+  ) {
+    return 'sports'
+  }
+
+  // Politics / government / elections
+  if (
+    /\b(president|prime minister|election|parliament|government|politics?|policy|diplomatic|ceasefire|war|conflict|senate|congress|vote|campaign|law|legislation)\b/i.test(text)
+  ) {
+    return 'politics'
+  }
+
+  // AI / tech news
+  if (
+    /\b(ai\b|artificial intelligence|machine learning|chatgpt|openai|neural network|tech|technology|robot|algorithm|llm|large language model|gpt)\b/i.test(text)
+  ) {
+    return 'ai-news'
+  }
+
+  // Celebrity / entertainment
+  if (
+    /\b(celebrity|actor|actress|singer|movie|film|hollywood|bollywood|pop star|royal family|entertainment|star)\b/i.test(text)
+  ) {
+    return 'celebrity'
+  }
+
+  // Games (video games, esports)
+  if (
+    /\b(video game|gaming|esports?|playstation|xbox|nintendo|pc game|game release|steam|fortnite|minecraft|call of duty)\b/i.test(text)
+  ) {
+    return 'games'
+  }
+
+  // Daily Highlights – things like "Top stories", "Daily recap"
+  if (
+    /\b(daily|today|highlights|roundup|top stories|briefing|recap)\b/i.test(text)
+  ) {
+    return 'daily-highlights'
+  }
+
+  // Default fallback – general/daily highlights
+  // Note: 'world' category doesn't exist in DB, so we use 'daily-highlights' as fallback
   return 'daily-highlights'
 }
 

@@ -64,7 +64,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description = stripMarkdown(data.body).slice(0, 160)
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
+  // Use SITE_URL first, fallback to NEXT_PUBLIC_SITE_URL, then default
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
   const articleUrl = `${siteUrl}/news/${slug}`
   const images = data?.image_url && data.image_url.trim() ? [data.image_url] : ['/android-chrome-512x512.png']
 

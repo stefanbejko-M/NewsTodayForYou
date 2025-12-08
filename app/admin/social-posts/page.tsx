@@ -26,6 +26,7 @@ export default function AdminSocialPostsPage() {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [reclassifying, setReclassifying] = useState(false)
   const [pendingCount, setPendingCount] = useState<number | null>(null)
 
   // Get token from URL or localStorage
@@ -219,6 +220,47 @@ export default function AdminSocialPostsPage() {
     }
   }
 
+  // Reclassify post categories
+  const reclassifyCategories = async () => {
+    if (!confirm('This will reclassify all posts based on their title and excerpt. This may take a while. Continue?')) {
+      return
+    }
+
+    try {
+      setReclassifying(true)
+      setError(null)
+
+      const response = await fetch(`/api/admin/reclassify-categories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': token,
+        },
+      })
+
+      if (response.status === 401) {
+        setError('Unauthorized. Please check your token.')
+        return
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reclassify categories')
+      }
+
+      alert(
+        `Reclassification complete!\n\nUpdated: ${data.updated}\nUnchanged: ${data.unchanged}\nErrors: ${data.errors || 0}`
+      )
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(errorMessage)
+      alert(`Failed to reclassify: ${errorMessage}`)
+    } finally {
+      setReclassifying(false)
+    }
+  }
+
   // Publish to Instagram
   const publishToInstagram = async (postId: string) => {
     try {
@@ -356,10 +398,26 @@ export default function AdminSocialPostsPage() {
             cursor: generating ? 'not-allowed' : 'pointer',
             fontSize: '14px',
             fontWeight: '600',
-            marginLeft: 'auto',
           }}
         >
           {generating ? 'Generating...' : 'Generate Instagram Posts'}
+        </button>
+        <button
+          onClick={reclassifyCategories}
+          disabled={reclassifying}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: reclassifying ? '#9ca3af' : '#2563eb',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: reclassifying ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            marginLeft: 'auto',
+          }}
+        >
+          {reclassifying ? 'Reclassifying...' : 'Reclassify Categories'}
         </button>
       </div>
 
