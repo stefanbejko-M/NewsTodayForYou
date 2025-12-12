@@ -5,11 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "next-sitemap",
+    "postbuild": "next-sitemap && tsx scripts/generate-sitemaps.ts",
     "start": "next start",
     "lint": "next lint",
     "ingest:local": "tsx supabase/functions/ingest/index.ts",
-    "sitemap": "next-sitemap"
+    "sitemap": "next-sitemap",
+    "sitemap:generate": "tsx scripts/generate-sitemaps.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

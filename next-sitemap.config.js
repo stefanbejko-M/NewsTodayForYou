@@ -2,6 +2,14 @@ const { createClient } = require('@supabase/supabase-js')
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
 
+const sitemapUrls = [
+  `${siteUrl}/sitemap.xml`,
+  `${siteUrl}/sitemap_index.xml`,
+  `${siteUrl}/post-sitemap.xml`,
+  `${siteUrl}/page-sitemap.xml`,
+  `${siteUrl}/category-sitemap.xml`,
+]
+
 async function getAdditionalPaths() {
   const paths = []
   
@@ -84,11 +92,15 @@ async function getAdditionalPaths() {
 
 module.exports = {
   siteUrl,
+  outDir: 'public',
   generateRobotsTxt: true,
   sitemapSize: 5000,
   changefreq: 'hourly',
   priority: 0.9,
   exclude: ['/api/*', '/admin/*'],
+  robotsTxtOptions: {
+    additionalSitemaps: sitemapUrls,
+  },
   additionalPaths: async () => {
     return await getAdditionalPaths()
   },
