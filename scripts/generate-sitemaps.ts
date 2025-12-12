@@ -13,6 +13,13 @@ type UrlEntry = {
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
 const publicDir = path.join(process.cwd(), 'public')
 
+function toIsoDate(value: string | Date | null | undefined): string {
+  if (!value) return new Date().toISOString()
+  const d = value instanceof Date ? value : new Date(value)
+  if (isNaN(d.getTime())) return new Date().toISOString()
+  return d.toISOString()
+}
+
 function buildUrlEntry({ loc, changefreq, priority, lastmod }: UrlEntry) {
   return [
     '<url>',
@@ -81,7 +88,7 @@ async function getPosts() {
       loc: `${siteUrl}/news/${post.slug}`,
       changefreq: 'daily',
       priority: 0.8,
-      lastmod: (post.updated_at || post.created_at || new Date()).toISOString(),
+      lastmod: toIsoDate(post.updated_at ?? post.created_at),
     }))
 }
 
@@ -91,7 +98,7 @@ async function getCategories() {
 
   const { data, error } = await supabase
     .from('category')
-    .select('slug, updated_at, created_at')
+    .select('slug, created_at')
     .not('slug', 'is', null)
 
   if (error || !data) {
@@ -103,11 +110,12 @@ async function getCategories() {
   return data
     .filter((category) => category.slug)
     .flatMap((category) => {
+      const lastmod = toIsoDate(category.created_at)
       const baseEntry = {
         loc: `${siteUrl}/category/${category.slug}`,
         changefreq: 'hourly',
         priority: 0.7,
-        lastmod: (category.updated_at || category.created_at || nowIso).toString(),
+        lastmod,
       }
 
       const paginated = Array.from({ length: 4 }, (_, idx) => {
