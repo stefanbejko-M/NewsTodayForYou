@@ -75,6 +75,7 @@ async function getPosts() {
   const { data, error } = await supabase
     .from('post')
     .select('slug, updated_at, created_at')
+    .eq('is_published', true)
     .not('slug', 'is', null)
 
   if (error || !data) {

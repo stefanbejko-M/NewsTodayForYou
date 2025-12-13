@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { SocialShare } from '@/components/SocialShare'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
 
+export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 type Post = {
@@ -41,6 +43,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .from('post')
     .select('title, excerpt, body, image_url')
     .eq('slug', slug)
+    .eq('is_published', true)
     .maybeSingle()
 
   const title = data?.title ? `${data.title} - NewsTodayForYou` : 'NewsTodayForYou'
@@ -96,18 +99,19 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
 
     const { data, error } = await client
       .from('post')
-      .select('*, category_id')
+      .select('*, category:category_id(*)')
       .eq('slug', slug)
+      .eq('is_published', true)
       .maybeSingle()
 
     console.log('[NEWS DEBUG] raw data =', data, 'error =', error)
 
     if (error) {
       console.error('[NEWS PAGE ERROR]', error)
-      return <div>Failed to load article.</div>
+      notFound()
     }
     if (!data) {
-      return <div>Article not found</div>
+      notFound()
     }
     const post = data as Post
 
@@ -199,6 +203,7 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
           .from('post')
           .select('id, title, slug, image_url, source_name, created_at')
           .eq('category_id', post.category_id)
+          .eq('is_published', true)
           .neq('id', post.id)
           .order('created_at', { ascending: false })
           .limit(6)
@@ -320,6 +325,7 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
       </>
     )
   } catch (error) {
-    return <div>Article not found</div>
+    console.error('[NEWS PAGE ERROR]', error)
+    notFound()
   }
 }
