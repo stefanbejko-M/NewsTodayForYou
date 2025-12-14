@@ -49,6 +49,69 @@ function buildInstagramImageUrl(originalUrl: string): string {
 }
 
 /**
+ * Validate that the Instagram image proxy returns a valid image
+ * Returns { ok: true } if valid, { ok: false, reason: string } if invalid
+ */
+async function validateInstagramImage(proxyUrl: string): Promise<{ ok: boolean; reason?: string }> {
+  try {
+    console.log('[INSTAGRAM VALIDATION] Testing proxy URL:', proxyUrl)
+    
+    // Do a HEAD request first to check Content-Type without downloading full image
+    const headResponse = await fetch(proxyUrl, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(10000), // 10 seconds timeout
+    })
+
+    if (!headResponse.ok) {
+      const reason = `Proxy returned status ${headResponse.status} ${headResponse.statusText}`
+      console.error('[INSTAGRAM VALIDATION]', reason)
+      return { ok: false, reason }
+    }
+
+    const contentType = headResponse.headers.get('content-type') || ''
+    if (!contentType.startsWith('image/')) {
+      const reason = `Proxy returned non-image Content-Type: ${contentType}`
+      console.error('[INSTAGRAM VALIDATION]', reason)
+      return { ok: false, reason }
+    }
+
+    // If HEAD worked, do a small GET to verify the image is actually processable
+    // We'll fetch just the first few KB to verify it's an image
+    const getResponse = await fetch(proxyUrl, {
+      method: 'GET',
+      headers: {
+        Range: 'bytes=0-8192', // First 8KB should be enough to verify it's an image
+      },
+      signal: AbortSignal.timeout(10000),
+    })
+
+    if (!getResponse.ok) {
+      const reason = `Proxy GET returned status ${getResponse.status} ${getResponse.statusText}`
+      console.error('[INSTAGRAM VALIDATION]', reason)
+      return { ok: false, reason }
+    }
+
+    const finalContentType = getResponse.headers.get('content-type') || ''
+    if (!finalContentType.startsWith('image/')) {
+      const reason = `Proxy GET returned non-image Content-Type: ${finalContentType}`
+      console.error('[INSTAGRAM VALIDATION]', reason)
+      return { ok: false, reason }
+    }
+
+    console.log('[INSTAGRAM VALIDATION] Proxy validation successful:', {
+      status: getResponse.status,
+      contentType: finalContentType,
+    })
+
+    return { ok: true }
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'Unknown error during validation'
+    console.error('[INSTAGRAM VALIDATION] Validation error:', error)
+    return { ok: false, reason }
+  }
+}
+
+/**
  * POST /api/social-posts/[id]/publish
  * Publish a social post to Instagram
  */
@@ -131,6 +194,21 @@ export async function POST(
       )
     }
 
+    // Validate the proxy image before attempting Instagram publish
+    console.log('[INSTAGRAM PUBLISH] Validating image proxy before Instagram publish...')
+    const validation = await validateInstagramImage(finalImageUrl)
+    if (!validation.ok) {
+      console.error('[INSTAGRAM PUBLISH] Image proxy validation failed:', validation.reason)
+      return NextResponse.json(
+        {
+          error: 'Image for this article could not be processed for Instagram. Try another image.',
+          details: validation.reason,
+        },
+        { status: 422 }
+      )
+    }
+    console.log('[INSTAGRAM PUBLISH] Image proxy validation passed')
+
     if (!post.url || post.url.trim().length === 0) {
       return NextResponse.json(
         { error: 'URL is missing or empty' },
@@ -186,6 +264,8 @@ export async function POST(
     // Log the request payload (without access token for security)
     console.log('[INSTAGRAM PUBLISH] Creating media container...')
     console.log('[INSTAGRAM PUBLISH] Request URL:', createMediaUrl)
+    console.log('[INSTAGRAM PUBLISH] Final image URL being sent to Instagram:', finalImageUrl)
+    console.log('[INSTAGRAM PUBLISH] Original image URL from database:', originalImageUrl)
     console.log('[INSTAGRAM PUBLISH] Request params:', {
       image_url: finalImageUrl,
       caption: caption.substring(0, 100) + '...',
@@ -203,20 +283,43 @@ export async function POST(
 
     const createMediaData = await createMediaResponse.json()
 
+    // Detailed logging for /media endpoint
+    console.log('[INSTAGRAM PUBLISH] /media response status:', createMediaResponse.status)
+    console.log('[INSTAGRAM PUBLISH] /media response JSON:', JSON.stringify(createMediaData, null, 2))
+    
+    if (createMediaData.error) {
+      console.error('[INSTAGRAM PUBLISH] /media error details:', {
+        error_type: createMediaData.error.type,
+        code: createMediaData.error.code,
+        message: createMediaData.error.message,
+        error_subcode: createMediaData.error.error_subcode,
+        fbtrace_id: createMediaData.error.fbtrace_id,
+        error_user_title: createMediaData.error.error_user_title,
+        error_user_msg: createMediaData.error.error_user_msg,
+      })
+    }
+
     if (!createMediaResponse.ok) {
       console.error('[INSTAGRAM PUBLISH] Create media error (non-OK response):', {
         status: createMediaResponse.status,
+        statusText: createMediaResponse.statusText,
         responseBody: createMediaData,
       })
 
+      // Return user-friendly error message
+      const userMessage = createMediaData.error?.error_user_msg || 
+                          createMediaData.error?.message || 
+                          `Instagram rejected this image. Try changing the article image or choose another story.`
+
       return NextResponse.json(
         {
-          error: `Instagram /media error (status ${createMediaResponse.status})`,
+          error: userMessage,
           stage: 'media',
           instagramError: createMediaData,
           request: {
             image_url: finalImageUrl,
-            hasLocationId: false, // No location_id support currently
+            original_image_url: originalImageUrl,
+            hasLocationId: false,
           },
         },
         { status: 500 }
@@ -226,13 +329,18 @@ export async function POST(
     if (createMediaData.error) {
       console.error('[INSTAGRAM PUBLISH] Create media error (error in response):', createMediaData.error)
 
+      const userMessage = createMediaData.error.error_user_msg || 
+                          createMediaData.error.message || 
+                          `Instagram rejected this image. Try changing the article image or choose another story.`
+
       return NextResponse.json(
         {
-          error: `Instagram /media error (status ${createMediaResponse.status})`,
+          error: userMessage,
           stage: 'media',
           instagramError: createMediaData,
           request: {
             image_url: finalImageUrl,
+            original_image_url: originalImageUrl,
             hasLocationId: false,
           },
         },
@@ -251,6 +359,7 @@ export async function POST(
           instagramError: createMediaData,
           request: {
             image_url: finalImageUrl,
+            original_image_url: originalImageUrl,
             hasLocationId: false,
           },
         },
@@ -258,7 +367,7 @@ export async function POST(
       )
     }
 
-    console.log('[INSTAGRAM PUBLISH] Media container created:', creationId)
+    console.log('[INSTAGRAM PUBLISH] Media container created successfully. Creation ID:', creationId)
 
     // Step 2: Publish the media
     const publishMediaUrl = `https://graph.facebook.com/v21.0/${instagramAccountId}/media_publish`
@@ -268,6 +377,9 @@ export async function POST(
     })
 
     console.log('[INSTAGRAM PUBLISH] Publishing media...')
+    console.log('[INSTAGRAM PUBLISH] /media_publish request URL:', publishMediaUrl)
+    console.log('[INSTAGRAM PUBLISH] /media_publish creation_id:', creationId)
+    
     const publishMediaResponse = await fetch(publishMediaUrl, {
       method: 'POST',
       headers: {
@@ -278,17 +390,40 @@ export async function POST(
 
     const publishMediaData = await publishMediaResponse.json()
 
+    // Detailed logging for /media_publish endpoint
+    console.log('[INSTAGRAM PUBLISH] /media_publish response status:', publishMediaResponse.status)
+    console.log('[INSTAGRAM PUBLISH] /media_publish response JSON:', JSON.stringify(publishMediaData, null, 2))
+    
+    if (publishMediaData.error) {
+      console.error('[INSTAGRAM PUBLISH] /media_publish error details:', {
+        error_type: publishMediaData.error.type,
+        code: publishMediaData.error.code,
+        message: publishMediaData.error.message,
+        error_subcode: publishMediaData.error.error_subcode,
+        fbtrace_id: publishMediaData.error.fbtrace_id,
+        error_user_title: publishMediaData.error.error_user_title,
+        error_user_msg: publishMediaData.error.error_user_msg,
+      })
+    }
+
     if (!publishMediaResponse.ok) {
       console.error('[INSTAGRAM PUBLISH] Publish media error (non-OK response):', {
         status: publishMediaResponse.status,
+        statusText: publishMediaResponse.statusText,
         responseBody: publishMediaData,
+        creation_id: creationId,
       })
+
+      const userMessage = publishMediaData.error?.error_user_msg || 
+                          publishMediaData.error?.message || 
+                          `Instagram rejected this image. Try changing the article image or choose another story.`
 
       return NextResponse.json(
         {
-          error: `Instagram /media_publish error (status ${publishMediaResponse.status})`,
+          error: userMessage,
           stage: 'media_publish',
           instagramError: publishMediaData,
+          creation_id: creationId,
         },
         { status: 500 }
       )
@@ -297,11 +432,16 @@ export async function POST(
     if (publishMediaData.error) {
       console.error('[INSTAGRAM PUBLISH] Publish media error (error in response):', publishMediaData.error)
 
+      const userMessage = publishMediaData.error.error_user_msg || 
+                          publishMediaData.error.message || 
+                          `Instagram rejected this image. Try changing the article image or choose another story.`
+
       return NextResponse.json(
         {
-          error: `Instagram /media_publish error (status ${publishMediaResponse.status})`,
+          error: userMessage,
           stage: 'media_publish',
           instagramError: publishMediaData,
+          creation_id: creationId,
         },
         { status: 500 }
       )
@@ -316,12 +456,13 @@ export async function POST(
           error: 'Instagram /media_publish response did not contain an id',
           stage: 'media_publish',
           instagramError: publishMediaData,
+          creation_id: creationId,
         },
         { status: 500 }
       )
     }
 
-    console.log('[INSTAGRAM PUBLISH] Successfully published to Instagram:', instagramPostId)
+    console.log('[INSTAGRAM PUBLISH] Successfully published to Instagram. Post ID:', instagramPostId)
 
     // Step 3: Update database - set status to "published"
     const updatedPost = await updateSocialPost(id, {

@@ -3,3 +3,4 @@ ALTER TABLE IF EXISTS public.post
     ADD COLUMN IF NOT EXISTS image_url text;
 
 
+

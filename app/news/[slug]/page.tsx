@@ -84,6 +84,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       images: images,
       siteName: 'NewsTodayForYou',
     },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: images,
+    },
   }
 }
 
@@ -156,6 +162,7 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
     }
 
     // Build NewsArticle JSON-LD schema (clean undefined values)
+    // Follows Google's NewsArticle guidelines: https://developers.google.com/search/docs/appearance/structured-data/article
     const newsArticleSchema: any = {
       '@context': 'https://schema.org',
       '@type': 'NewsArticle',
@@ -163,24 +170,26 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
         '@type': 'WebPage',
         '@id': articleUrl,
       },
-      headline: post.title || 'News article',
+      headline: (post.title || 'News article').slice(0, 110), // Max ~110 chars for headline
       datePublished: publishedDate,
       dateModified: modifiedDate,
       author: {
         '@type': 'Organization',
-        name: 'NewsTodayForYou Editorial Team',
+        name: 'News Today For You',
       },
       publisher: {
         '@type': 'NewsMediaOrganization',
-        name: 'NewsTodayForYou',
+        name: 'News Today For You',
         logo: {
           '@type': 'ImageObject',
-          url: 'https://newstoday4u.com/logo-nt.svg',
+          url: 'https://newstoday4u.com/android-chrome-512x512.png', // Use actual logo URL
         },
       },
+      isAccessibleForFree: true,
+      inLanguage: 'en',
     }
 
-    // Add description if available
+    // Add description if available (strip HTML/markdown, max length)
     const description = post.excerpt
       ? stripMarkdown(post.excerpt).slice(0, 160)
       : stripMarkdown(post.body).slice(0, 160)
@@ -193,6 +202,14 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
       newsArticleSchema.image = [post.image_url]
     } else {
       newsArticleSchema.image = ['https://newstoday4u.com/android-chrome-512x512.png']
+    }
+
+    // Add articleSection (category)
+    if (cat && cat?.name) {
+      newsArticleSchema.articleSection = cat.name
+    } else if (cat && cat?.slug) {
+      // Fallback to slug if name not available
+      newsArticleSchema.articleSection = cat.slug
     }
 
     // Fetch related posts from the same category
