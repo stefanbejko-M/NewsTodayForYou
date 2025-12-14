@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 type SocialPost = {
   id: string
@@ -13,11 +13,26 @@ type SocialPost = {
   suggested_text: string | null
   created_at: string
   updated_at: string
+  instagram_post_id?: string | null
+  instagram_permalink?: string | null
+  published_at?: string | null
+  last_error?: string | null
+}
+
+// Helper to get status badge style
+function getStatusBadgeStyle(status: string) {
+  if (status === 'published') {
+    return { backgroundColor: '#10b981', color: 'white', text: 'Published' }
+  } else if (status === 'failed') {
+    return { backgroundColor: '#ef4444', color: 'white', text: 'Failed' }
+  } else {
+    return { backgroundColor: '#f59e0b', color: 'white', text: 'Pending' }
+  }
 }
 
 export default function AdminSocialPostsPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const [token, setToken] = useState<string>('')
   const [posts, setPosts] = useState<SocialPost[]>([])
   const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null)
   const [loading, setLoading] = useState(true)
@@ -28,25 +43,24 @@ export default function AdminSocialPostsPage() {
   const [generating, setGenerating] = useState(false)
   const [reclassifying, setReclassifying] = useState(false)
   const [pendingCount, setPendingCount] = useState<number | null>(null)
+  const [showError, setShowError] = useState<string | null>(null)
 
-  // Get token from URL or localStorage
-  useEffect(() => {
-    const urlToken = searchParams.get('token')
-    const storedToken = localStorage.getItem('admin_token')
-    const initialToken = urlToken || storedToken || ''
-    setToken(initialToken)
-    if (initialToken && !storedToken) {
-      localStorage.setItem('admin_token', initialToken)
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' })
+      router.push('/admin/login')
+    } catch (err) {
+      console.error('Logout error:', err)
+      router.push('/admin/login')
     }
-  }, [searchParams])
+  }
 
   // Fetch pending count
   useEffect(() => {
-    if (!token) return
-
     const fetchPendingCount = async () => {
       try {
-        const response = await fetch(`/api/social-posts/generate?token=${encodeURIComponent(token)}`)
+        const response = await fetch('/api/social-posts/generate')
         if (response.ok) {
           const data = await response.json()
           setPendingCount(data.pendingInstagramPosts || 0)
@@ -57,25 +71,17 @@ export default function AdminSocialPostsPage() {
     }
 
     fetchPendingCount()
-  }, [token])
+  }, [])
 
   // Fetch posts
   useEffect(() => {
-    if (!token) {
-      setLoading(false)
-      return
-    }
-
     const fetchPosts = async () => {
       try {
         setLoading(true)
-        const response = await fetch(
-          `/api/social-posts?status=${statusFilter}&token=${encodeURIComponent(token)}`
-        )
+        const response = await fetch(`/api/social-posts?status=${statusFilter}`)
 
         if (response.status === 401) {
-          setError('Unauthorized. Please check your token.')
-          setPosts([])
+          router.push('/admin/login')
           return
         }
 
@@ -109,15 +115,15 @@ export default function AdminSocialPostsPage() {
     }
 
     fetchPosts()
-  }, [token, statusFilter, searchParams])
+  }, [statusFilter, searchParams, router])
 
   // Fetch single post
   const fetchPost = async (id: string) => {
     try {
-      const response = await fetch(`/api/social-posts/${id}?token=${encodeURIComponent(token)}`)
+      const response = await fetch(`/api/social-posts/${id}`)
 
       if (response.status === 401) {
-        setError('Unauthorized. Please check your token.')
+        router.push('/admin/login')
         return
       }
 
@@ -130,6 +136,23 @@ export default function AdminSocialPostsPage() {
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
+    }
+  }
+
+  // Refresh posts list
+  const refreshPosts = async () => {
+    try {
+      const response = await fetch(`/api/social-posts?status=${statusFilter}`)
+      if (response.ok) {
+        const data = await response.json()
+        const allPosts = data.posts || []
+        const validPosts = allPosts.filter(
+          (post: SocialPost) => typeof post.image_url === 'string' && post.image_url.trim().length > 0
+        )
+        setPosts(validPosts)
+      }
+    } catch (err) {
+      console.error('Failed to refresh posts:', err)
     }
   }
 
@@ -153,13 +176,12 @@ export default function AdminSocialPostsPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-token': token,
         },
         body: JSON.stringify(updates),
       })
 
       if (response.status === 401) {
-        setError('Unauthorized. Please check your token.')
+        router.push('/admin/login')
         return
       }
 
@@ -194,12 +216,11 @@ export default function AdminSocialPostsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-token': token,
         },
       })
 
       if (response.status === 401) {
-        setError('Unauthorized. Please check your token.')
+        router.push('/admin/login')
         return
       }
 
@@ -210,7 +231,8 @@ export default function AdminSocialPostsPage() {
       }
 
       // Refresh the posts list
-      window.location.reload()
+      await refreshPosts()
+      alert('Instagram posts generated successfully!')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(errorMessage)
@@ -234,12 +256,11 @@ export default function AdminSocialPostsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-token': token,
         },
       })
 
       if (response.status === 401) {
-        setError('Unauthorized. Please check your token.')
+        router.push('/admin/login')
         return
       }
 
@@ -266,100 +287,76 @@ export default function AdminSocialPostsPage() {
     try {
       setPublishing(postId)
       setError(null)
+      setShowError(null)
 
       const response = await fetch(`/api/social-posts/${postId}/publish`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-token': token,
         },
       })
 
       if (response.status === 401) {
-        setError('Unauthorized. Please check your token.')
+        router.push('/admin/login')
         return
       }
 
       const data = await response.json()
 
       if (!response.ok) {
-        // Extract detailed Instagram error message
-        const details =
-          data.instagramError?.error?.message ||
-          data.instagramError?.message ||
-          (data.instagramError ? JSON.stringify(data.instagramError) : null)
-
         const errorMessage = data.error || 'Failed to publish to Instagram'
-        const fullMessage = details
-          ? `Failed to publish:\n${errorMessage}\n\nInstagram says: ${details}`
-          : `Failed to publish:\n${errorMessage}`
-
-        throw new Error(fullMessage)
+        setError(errorMessage)
+        setShowError(errorMessage)
+        alert(`Failed to publish: ${errorMessage}`)
+        // Refresh to get updated status from database
+        await refreshPosts()
+        if (selectedPost?.id === postId) {
+          await fetchPost(postId)
+        }
+        return
       }
 
-      // Update the post in the list and selected post
-      const updatedPost = data.post || { ...posts.find((p) => p.id === postId), status: 'published' }
-      setPosts((prev) => prev.map((p) => (p.id === postId ? updatedPost : p)))
+      // Refresh posts list to show updated status
+      await refreshPosts()
 
+      // Update selected post if it's the one we just published
       if (selectedPost?.id === postId) {
-        setSelectedPost(updatedPost)
+        await fetchPost(postId)
       }
 
       alert(`Successfully published to Instagram! Post ID: ${data.instagramPostId || 'N/A'}`)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(errorMessage)
+      setShowError(errorMessage)
       alert(`Failed to publish: ${errorMessage}`)
+      // Refresh to get updated status
+      await refreshPosts()
     } finally {
       setPublishing(null)
     }
   }
 
-  if (!token) {
-    return (
-      <div style={{ maxWidth: '600px', margin: '40px auto', padding: '20px' }}>
-        <h1>Admin Panel - Social Posts</h1>
-        <p style={{ color: '#dc2626', marginBottom: '20px' }}>
-          Unauthorized. Please provide a valid token.
-        </p>
-        <input
-          type="text"
-          placeholder="Enter admin token"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '12px',
-            border: '1px solid var(--border)',
-            borderRadius: '6px',
-            fontSize: '16px',
-          }}
-        />
+  return (
+    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h1 style={{ margin: 0 }}>Admin Panel - Social Posts</h1>
         <button
-          onClick={() => {
-            localStorage.setItem('admin_token', token)
-            window.location.reload()
-          }}
+          onClick={handleLogout}
           style={{
-            marginTop: '12px',
-            padding: '12px 24px',
-            backgroundColor: '#2563eb',
+            padding: '8px 16px',
+            backgroundColor: '#64748b',
             color: 'white',
             border: 'none',
             borderRadius: '6px',
             cursor: 'pointer',
-            fontSize: '16px',
+            fontSize: '14px',
+            fontWeight: '600',
           }}
         >
-          Set Token
+          Logout
         </button>
       </div>
-    )
-  }
-
-  return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
-      <h1>Admin Panel - Social Posts</h1>
 
       <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
         <label>
@@ -466,88 +463,100 @@ export default function AdminSocialPostsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {posts.map((post) => (
-                    <tr
-                      key={post.id}
-                      style={{
-                        borderBottom: '1px solid var(--border)',
-                        cursor: 'pointer',
-                        backgroundColor: selectedPost?.id === post.id ? '#f0f9ff' : 'transparent',
-                      }}
-                      onClick={() => fetchPost(post.id)}
-                    >
-                      <td style={{ padding: '12px', fontSize: '14px' }}>
-                        {new Date(post.created_at).toLocaleDateString()}
-                      </td>
-                      <td style={{ padding: '12px', fontSize: '14px' }}>
-                        {post.title.length > 50 ? post.title.slice(0, 50) + '...' : post.title}
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '12px', textTransform: 'capitalize' }}>
-                        {post.platform}
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <span
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            backgroundColor:
-                              post.status === 'published'
-                                ? '#10b981'
-                                : post.status === 'failed'
-                                ? '#ef4444'
-                                : '#f59e0b',
-                            color: 'white',
-                          }}
-                        >
-                          {post.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              fetchPost(post.id)
-                            }}
+                  {posts.map((post) => {
+                    const badgeStyle = getStatusBadgeStyle(post.status)
+                    return (
+                      <tr
+                        key={post.id}
+                        style={{
+                          borderBottom: '1px solid var(--border)',
+                          cursor: 'pointer',
+                          backgroundColor: selectedPost?.id === post.id ? '#f0f9ff' : 'transparent',
+                        }}
+                        onClick={() => fetchPost(post.id)}
+                      >
+                        <td style={{ padding: '12px', fontSize: '14px' }}>
+                          {new Date(post.created_at).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: '12px', fontSize: '14px' }}>
+                          {post.title.length > 50 ? post.title.slice(0, 50) + '...' : post.title}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontSize: '12px', textTransform: 'capitalize' }}>
+                          {post.platform}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <span
                             style={{
-                              padding: '6px 12px',
-                              backgroundColor: '#2563eb',
-                              color: 'white',
-                              border: 'none',
+                              padding: '4px 8px',
                               borderRadius: '4px',
-                              cursor: 'pointer',
                               fontSize: '12px',
+                              backgroundColor: badgeStyle.backgroundColor,
+                              color: badgeStyle.color,
+                              fontWeight: '600',
                             }}
                           >
-                            View
-                          </button>
-                          {post.platform?.toLowerCase().includes('instagram') &&
-                            post.status !== 'published' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  publishToInstagram(post.id)
-                                }}
-                                disabled={publishing === post.id}
-                                style={{
-                                  padding: '6px 12px',
-                                  backgroundColor: publishing === post.id ? '#9ca3af' : '#e91e63',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: publishing === post.id ? 'not-allowed' : 'pointer',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                }}
-                              >
-                                {publishing === post.id ? '...' : 'Publish IG'}
-                              </button>
-                            )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {badgeStyle.text}
+                          </span>
+                          {post.last_error && (
+                            <span
+                              title={post.last_error}
+                              style={{
+                                marginLeft: '6px',
+                                cursor: 'help',
+                                fontSize: '14px',
+                                color: '#ef4444',
+                              }}
+                            >
+                              ⚠
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                fetchPost(post.id)
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#2563eb',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                              }}
+                            >
+                              View
+                            </button>
+                            {post.platform?.toLowerCase().includes('instagram') &&
+                              post.status !== 'published' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    publishToInstagram(post.id)
+                                  }}
+                                  disabled={publishing === post.id}
+                                  style={{
+                                    padding: '6px 12px',
+                                    backgroundColor: publishing === post.id ? '#9ca3af' : '#e91e63',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: publishing === post.id ? 'not-allowed' : 'pointer',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  {publishing === post.id ? '...' : 'Publish IG'}
+                                </button>
+                              )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -574,27 +583,53 @@ export default function AdminSocialPostsPage() {
                   </a>
                 </p>
 
-                <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '14px', color: '#64748b' }}>
                     <strong>Platform:</strong> {selectedPost.platform}
                   </span>
-                  <span
+                  {(() => {
+                    const badgeStyle = getStatusBadgeStyle(selectedPost.status)
+                    return (
+                      <span
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          backgroundColor: badgeStyle.backgroundColor,
+                          color: badgeStyle.color,
+                          fontWeight: '600',
+                        }}
+                      >
+                        {badgeStyle.text}
+                      </span>
+                    )
+                  })()}
+                  {selectedPost.instagram_post_id && (
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                      IG ID: {selectedPost.instagram_post_id}
+                    </span>
+                  )}
+                  {selectedPost.published_at && (
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                      Published: {new Date(selectedPost.published_at).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+
+                {selectedPost.last_error && (
+                  <div
                     style={{
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      backgroundColor:
-                        selectedPost.status === 'published'
-                          ? '#10b981'
-                          : selectedPost.status === 'failed'
-                          ? '#ef4444'
-                          : '#f59e0b',
-                      color: 'white',
+                      padding: '12px',
+                      backgroundColor: '#fee2e2',
+                      color: '#dc2626',
+                      borderRadius: '6px',
+                      marginBottom: '20px',
+                      fontSize: '14px',
                     }}
                   >
-                    {selectedPost.status}
-                  </span>
-                </div>
+                    <strong>Last Error:</strong> {selectedPost.last_error}
+                  </div>
+                )}
 
                 {selectedPost.image_url && (
                   <div style={{ marginBottom: '20px' }}>

@@ -1,34 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reclassifyPosts } from '@/lib/reclassifyCategories'
+import { isAdminAuthenticated } from '@/lib/adminAuth'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-/**
- * Check if request has valid admin token
- */
-function isAuthorized(request: NextRequest): boolean {
-  const adminToken = process.env.ADMIN_DASHBOARD_TOKEN
-
-  // If no token configured, allow access (for development)
-  if (!adminToken) {
-    console.warn('[ADMIN] No ADMIN_DASHBOARD_TOKEN configured. Allowing access.')
-    return true
-  }
-
-  const headerToken = request.headers.get('x-admin-token')
-  if (headerToken === adminToken) {
-    return true
-  }
-
-  const url = new URL(request.url)
-  const queryToken = url.searchParams.get('token')
-  if (queryToken === adminToken) {
-    return true
-  }
-
-  return false
-}
 
 /**
  * POST /api/admin/reclassify-categories
@@ -37,7 +12,7 @@ function isAuthorized(request: NextRequest): boolean {
 export async function POST(request: NextRequest) {
   try {
     // Check authorization
-    if (!isAuthorized(request)) {
+    if (!(await isAdminAuthenticated(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

@@ -1,36 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSocialPostById, updateSocialPost } from '@/lib/socialPostService'
+import { isAdminAuthenticated } from '@/lib/adminAuth'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-/**
- * Check if request has valid admin token
- */
-function isAuthorized(request: NextRequest): boolean {
-  const adminToken = process.env.ADMIN_DASHBOARD_TOKEN
-
-  // If no token is configured, allow access (for development)
-  if (!adminToken) {
-    console.warn('[ADMIN] No ADMIN_DASHBOARD_TOKEN configured. Allowing access.')
-    return true
-  }
-
-  // Check header
-  const headerToken = request.headers.get('x-admin-token')
-  if (headerToken === adminToken) {
-    return true
-  }
-
-  // Check query parameter
-  const url = new URL(request.url)
-  const queryToken = url.searchParams.get('token')
-  if (queryToken === adminToken) {
-    return true
-  }
-
-  return false
-}
 
 /**
  * Build Instagram image proxy URL
@@ -119,9 +92,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Get post ID from params early so it's available in catch block
+  const { id } = await params
+  
   try {
     // Check authorization
-    if (!isAuthorized(request)) {
+    if (!(await isAdminAuthenticated(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -142,9 +118,6 @@ export async function POST(
         { status: 500 }
       )
     }
-
-    // Get post ID from params
-    const { id } = await params
 
     // Fetch the social post from database
     const post = await getSocialPostById(id)
@@ -199,9 +172,18 @@ export async function POST(
     const validation = await validateInstagramImage(finalImageUrl)
     if (!validation.ok) {
       console.error('[INSTAGRAM PUBLISH] Image proxy validation failed:', validation.reason)
+      
+      const errorMessage = 'Image for this article could not be processed for Instagram. Try another image.'
+      
+      // Update database with failure status
+      await updateSocialPost(id, {
+        status: 'failed',
+        last_error: errorMessage + (validation.reason ? ` (${validation.reason})` : ''),
+      })
+      
       return NextResponse.json(
         {
-          error: 'Image for this article could not be processed for Instagram. Try another image.',
+          error: errorMessage,
           details: validation.reason,
         },
         { status: 422 }
@@ -311,6 +293,12 @@ export async function POST(
                           createMediaData.error?.message || 
                           `Instagram rejected this image. Try changing the article image or choose another story.`
 
+      // Update database with failure status
+      await updateSocialPost(id, {
+        status: 'failed',
+        last_error: userMessage,
+      })
+
       return NextResponse.json(
         {
           error: userMessage,
@@ -333,6 +321,12 @@ export async function POST(
                           createMediaData.error.message || 
                           `Instagram rejected this image. Try changing the article image or choose another story.`
 
+      // Update database with failure status
+      await updateSocialPost(id, {
+        status: 'failed',
+        last_error: userMessage,
+      })
+
       return NextResponse.json(
         {
           error: userMessage,
@@ -352,9 +346,17 @@ export async function POST(
     if (!creationId) {
       console.error('[INSTAGRAM PUBLISH] Create media response missing id:', createMediaData)
 
+      const errorMessage = 'Instagram /media response did not contain an id'
+      
+      // Update database with failure status
+      await updateSocialPost(id, {
+        status: 'failed',
+        last_error: errorMessage,
+      })
+
       return NextResponse.json(
         {
-          error: 'Instagram /media response did not contain an id',
+          error: errorMessage,
           stage: 'media',
           instagramError: createMediaData,
           request: {
@@ -418,6 +420,12 @@ export async function POST(
                           publishMediaData.error?.message || 
                           `Instagram rejected this image. Try changing the article image or choose another story.`
 
+      // Update database with failure status
+      await updateSocialPost(id, {
+        status: 'failed',
+        last_error: userMessage,
+      })
+
       return NextResponse.json(
         {
           error: userMessage,
@@ -436,6 +444,12 @@ export async function POST(
                           publishMediaData.error.message || 
                           `Instagram rejected this image. Try changing the article image or choose another story.`
 
+      // Update database with failure status
+      await updateSocialPost(id, {
+        status: 'failed',
+        last_error: userMessage,
+      })
+
       return NextResponse.json(
         {
           error: userMessage,
@@ -451,9 +465,17 @@ export async function POST(
     if (!instagramPostId) {
       console.error('[INSTAGRAM PUBLISH] Publish media response missing id:', publishMediaData)
 
+      const errorMessage = 'Instagram /media_publish response did not contain an id'
+      
+      // Update database with failure status
+      await updateSocialPost(id, {
+        status: 'failed',
+        last_error: errorMessage,
+      })
+
       return NextResponse.json(
         {
-          error: 'Instagram /media_publish response did not contain an id',
+          error: errorMessage,
           stage: 'media_publish',
           instagramError: publishMediaData,
           creation_id: creationId,
@@ -464,9 +486,16 @@ export async function POST(
 
     console.log('[INSTAGRAM PUBLISH] Successfully published to Instagram. Post ID:', instagramPostId)
 
-    // Step 3: Update database - set status to "published"
+    // Step 3: Update database with full tracking information
+    // Extract permalink if available (Instagram API may provide this in some responses)
+    const permalink = publishMediaData.permalink || null
+    
     const updatedPost = await updateSocialPost(id, {
       status: 'published',
+      instagram_post_id: instagramPostId,
+      instagram_permalink: permalink,
+      published_at: new Date().toISOString(),
+      last_error: null,
     })
 
     if (!updatedPost) {
@@ -486,9 +515,22 @@ export async function POST(
     })
   } catch (error) {
     console.error('[INSTAGRAM PUBLISH] Unexpected error:', error)
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    
+    // Try to update database with failure status (best effort, don't fail if this fails)
+    try {
+      await updateSocialPost(id, {
+        status: 'failed',
+        last_error: errorMessage,
+      })
+    } catch (dbError) {
+      console.error('[INSTAGRAM PUBLISH] Failed to update database with error status:', dbError)
+    }
+    
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: errorMessage,
       },
       { status: 500 }
     )

@@ -13,6 +13,10 @@ export type SocialPost = {
   suggested_text: string | null
   created_at: string
   updated_at: string
+  instagram_post_id?: string | null
+  instagram_permalink?: string | null
+  published_at?: string | null
+  last_error?: string | null
 }
 
 /**
@@ -57,6 +61,10 @@ export async function updateSocialPost(
     url?: string
     image_url?: string | null
     platform?: string
+    instagram_post_id?: string | null
+    instagram_permalink?: string | null
+    published_at?: string | null
+    last_error?: string | null
   }
 ): Promise<SocialPost | null> {
   const supabase = getSupabaseClient()
