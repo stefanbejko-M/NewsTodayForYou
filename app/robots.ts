@@ -12,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
       `${base}/post-sitemap.xml`,
       `${base}/page-sitemap.xml`,
       `${base}/category-sitemap.xml`,
+      `${base}/news-sitemap.xml`,
     ],
   }
 }

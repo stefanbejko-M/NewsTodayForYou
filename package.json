@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "next-sitemap && tsx scripts/generate-sitemaps.ts",
+    "postbuild": "next-sitemap && tsx scripts/generate-sitemaps.ts && tsx scripts/generate-news-sitemap.ts",
     "start": "next start",
     "lint": "next lint",
     "ingest:local": "tsx supabase/functions/ingest/index.ts",

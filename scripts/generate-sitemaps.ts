@@ -178,6 +178,7 @@ async function main() {
     `${siteUrl}/post-sitemap.xml`,
     `${siteUrl}/page-sitemap.xml`,
     `${siteUrl}/category-sitemap.xml`,
+    `${siteUrl}/news-sitemap.xml`,
   ]
 
   const indexXml = wrapSitemapIndex(sitemapList)
