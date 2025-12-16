@@ -154,6 +154,7 @@ export async function POST(
     // Instagram will fetch the image from our proxy endpoint, which downloads it from the original source
     const originalImageUrl = post.image_url.trim()
     let finalImageUrl: string
+    let debugResult: any = null // Declare at function scope so it's available in error handlers
 
     try {
       finalImageUrl = buildInstagramImageUrl(originalImageUrl)
@@ -167,29 +168,84 @@ export async function POST(
       )
     }
 
-    // Validate the proxy image before attempting Instagram publish
-    console.log('[INSTAGRAM PUBLISH] Validating image proxy before Instagram publish...')
-    const validation = await validateInstagramImage(finalImageUrl)
-    if (!validation.ok) {
-      console.error('[INSTAGRAM PUBLISH] Image proxy validation failed:', validation.reason)
+    // Debug and validate the image before attempting Instagram publish
+    console.log('[INSTAGRAM PUBLISH] Running image diagnostics before Instagram publish...')
+    try {
+      // Call debug endpoint internally
+      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+      const debugUrl = new URL('/api/instagram-image/debug', siteUrl)
+      debugUrl.searchParams.set('src', originalImageUrl)
       
-      const errorMessage = 'Image for this article could not be processed for Instagram. Try another image.'
-      
-      // Update database with failure status
-      await updateSocialPost(id, {
-        status: 'failed',
-        last_error: errorMessage + (validation.reason ? ` (${validation.reason})` : ''),
+      const debugResponse = await fetch(debugUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+        },
       })
       
-      return NextResponse.json(
-        {
-          error: errorMessage,
-          details: validation.reason,
-        },
-        { status: 422 }
-      )
+      debugResult = await debugResponse.json()
+      console.log('[INSTAGRAM PUBLISH] Image debug result:', JSON.stringify(debugResult, null, 2))
+      
+      if (!debugResult.okForIG) {
+        // Build clear error message from debug result
+        let errorMessage = 'Image for this article could not be processed for Instagram.'
+        
+        if (debugResult.error) {
+          errorMessage = debugResult.error
+        } else if (debugResult.checks) {
+          if (debugResult.checks.tooSmall) {
+            const minDim = Math.min(debugResult.output?.width || 0, debugResult.output?.height || 0)
+            errorMessage = `Image too small: ${debugResult.output?.width || 0}x${debugResult.output?.height || 0} (minimum 320px required)`
+          } else if (debugResult.checks.tooLarge) {
+            errorMessage = `Image too large: ${debugResult.output?.bytes || 0} bytes (max 8MB)`
+          } else {
+            errorMessage = 'Image failed Instagram compatibility checks'
+          }
+        } else if (!debugResult.detectedIsImage) {
+          errorMessage = debugResult.detectedType 
+            ? `Upstream returned ${debugResult.detectedType} instead of an image`
+            : 'Upstream did not return a valid image'
+        }
+        
+        // Update database with failure status and diagnostics
+        const lastError = errorMessage + (debugResult.status ? ` (HTTP ${debugResult.status})` : '')
+        await updateSocialPost(id, {
+          status: 'failed',
+          last_error: lastError,
+        })
+        
+        // Log full debug JSON server-side
+        console.error('[INSTAGRAM PUBLISH] Image debug failed:', JSON.stringify(debugResult, null, 2))
+        
+        return NextResponse.json(
+          {
+            error: errorMessage,
+            debug: debugResult,
+          },
+          { status: 400 }
+        )
+      }
+      
+      console.log('[INSTAGRAM PUBLISH] Image debug passed - image is OK for Instagram')
+    } catch (debugError) {
+      console.error('[INSTAGRAM PUBLISH] Failed to run image debug:', debugError)
+      // Continue with old validation as fallback
+      const validation = await validateInstagramImage(finalImageUrl)
+      if (!validation.ok) {
+        const errorMessage = 'Image for this article could not be processed for Instagram. Try another image.'
+        await updateSocialPost(id, {
+          status: 'failed',
+          last_error: errorMessage + (validation.reason ? ` (${validation.reason})` : ''),
+        })
+        return NextResponse.json(
+          {
+            error: errorMessage,
+            details: validation.reason,
+          },
+          { status: 422 }
+        )
+      }
     }
-    console.log('[INSTAGRAM PUBLISH] Image proxy validation passed')
 
     if (!post.url || post.url.trim().length === 0) {
       return NextResponse.json(
@@ -293,11 +349,25 @@ export async function POST(
                           createMediaData.error?.message || 
                           `Instagram rejected this image. Try changing the article image or choose another story.`
 
+      // Build error message with diagnostics if available
+      let lastError = userMessage
+      if (debugResult) {
+        const debugSummary = debugResult.checks 
+          ? ` (Image: ${debugResult.output?.width || '?'}x${debugResult.output?.height || '?'}, ${debugResult.output?.bytes || '?'} bytes)`
+          : ''
+        lastError = userMessage + debugSummary
+      }
+
       // Update database with failure status
       await updateSocialPost(id, {
         status: 'failed',
-        last_error: userMessage,
+        last_error: lastError,
       })
+      
+      // Log full debug JSON server-side
+      if (debugResult) {
+        console.error('[INSTAGRAM PUBLISH] Full debug diagnostics:', JSON.stringify(debugResult, null, 2))
+      }
 
       return NextResponse.json(
         {
@@ -321,11 +391,25 @@ export async function POST(
                           createMediaData.error.message || 
                           `Instagram rejected this image. Try changing the article image or choose another story.`
 
+      // Build error message with diagnostics if available
+      let lastError = userMessage
+      if (debugResult) {
+        const debugSummary = debugResult.checks 
+          ? ` (Image: ${debugResult.output?.width || '?'}x${debugResult.output?.height || '?'}, ${debugResult.output?.bytes || '?'} bytes)`
+          : ''
+        lastError = userMessage + debugSummary
+      }
+
       // Update database with failure status
       await updateSocialPost(id, {
         status: 'failed',
-        last_error: userMessage,
+        last_error: lastError,
       })
+      
+      // Log full debug JSON server-side
+      if (debugResult) {
+        console.error('[INSTAGRAM PUBLISH] Full debug diagnostics:', JSON.stringify(debugResult, null, 2))
+      }
 
       return NextResponse.json(
         {
@@ -420,11 +504,25 @@ export async function POST(
                           publishMediaData.error?.message || 
                           `Instagram rejected this image. Try changing the article image or choose another story.`
 
+      // Build error message with diagnostics if available
+      let lastError = userMessage
+      if (debugResult) {
+        const debugSummary = debugResult.checks 
+          ? ` (Image: ${debugResult.output?.width || '?'}x${debugResult.output?.height || '?'}, ${debugResult.output?.bytes || '?'} bytes)`
+          : ''
+        lastError = userMessage + debugSummary
+      }
+
       // Update database with failure status
       await updateSocialPost(id, {
         status: 'failed',
-        last_error: userMessage,
+        last_error: lastError,
       })
+      
+      // Log full debug JSON server-side
+      if (debugResult) {
+        console.error('[INSTAGRAM PUBLISH] Full debug diagnostics:', JSON.stringify(debugResult, null, 2))
+      }
 
       return NextResponse.json(
         {
@@ -444,11 +542,25 @@ export async function POST(
                           publishMediaData.error.message || 
                           `Instagram rejected this image. Try changing the article image or choose another story.`
 
+      // Build error message with diagnostics if available
+      let lastError = userMessage
+      if (debugResult) {
+        const debugSummary = debugResult.checks 
+          ? ` (Image: ${debugResult.output?.width || '?'}x${debugResult.output?.height || '?'}, ${debugResult.output?.bytes || '?'} bytes)`
+          : ''
+        lastError = userMessage + debugSummary
+      }
+
       // Update database with failure status
       await updateSocialPost(id, {
         status: 'failed',
-        last_error: userMessage,
+        last_error: lastError,
       })
+      
+      // Log full debug JSON server-side
+      if (debugResult) {
+        console.error('[INSTAGRAM PUBLISH] Full debug diagnostics:', JSON.stringify(debugResult, null, 2))
+      }
 
       return NextResponse.json(
         {

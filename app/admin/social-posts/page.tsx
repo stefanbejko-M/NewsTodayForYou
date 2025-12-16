@@ -499,12 +499,16 @@ export default function AdminSocialPostsPage() {
                           </span>
                           {post.last_error && (
                             <span
-                              title={post.last_error}
+                              title={`Why failed? ${post.last_error}`}
                               style={{
                                 marginLeft: '6px',
                                 cursor: 'help',
                                 fontSize: '14px',
                                 color: '#ef4444',
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                alert(`Why failed?\n\n${post.last_error}`)
                               }}
                             >
                               ⚠
@@ -627,7 +631,34 @@ export default function AdminSocialPostsPage() {
                       fontSize: '14px',
                     }}
                   >
-                    <strong>Last Error:</strong> {selectedPost.last_error}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                      <strong>Why failed?</strong>
+                      <button
+                        onClick={() => {
+                          const errorText = selectedPost.last_error || 'No error details available'
+                          if (navigator.clipboard) {
+                            navigator.clipboard.writeText(errorText)
+                            alert('Error details copied to clipboard!')
+                          } else {
+                            alert(errorText)
+                          }
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: '#dc2626',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {selectedPost.last_error}
+                    </div>
                   </div>
                 )}
 
