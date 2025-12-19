@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 import { getFinalCategorySlugForPost } from '../../../../lib/categoryClassifier'
+import { generateEditorialArticle, generateFallbackArticle, type AiArticleSource } from '../../../../lib/articleAi'
 // import { createSocialPostForArticle } from '@/lib/socialPostService' // Removed - function no longer exists with new schema
 
 export const dynamic = 'force-dynamic'
@@ -318,90 +319,54 @@ async function resolveImageUrl(article: EventRegistryArticle, rewritten: AIRewri
   return await generateImageUrlForArticle(rewritten.new_title || article.title)
 }
 
-// Helper: Rewrite article using OpenAI
+// Helper: Rewrite article using OpenAI (now uses editorial article generator)
 async function rewriteArticleWithAI(
   title: string,
   body: string,
-  sourceName: string
+  sourceName: string,
+  categorySlug?: string | null
 ): Promise<AIRewriteResult | null> {
-  const prompt = `Rewrite the following news article facts into a new, fully original human-written English news story. 
-
-Follow these rules:
-
-- Write for US/Canada/UK/Australia audience.
-- DO NOT copy any phrasing or wording from original text.
-- Use short clear sentences.
-- Keep journalistic tone.
-- Maintain factual accuracy.
-- Add natural transitions.
-- Include context when appropriate.
-- Add 2–3 H2 sub-headings using ## markdown.
-- Add a final short 'Summary' paragraph.
-- Title MUST be rewritten and SEO-optimized.
-- Provide a unique SEO-friendly slug based on the new title.
-- DO NOT fabricate facts.
-- DO NOT hallucinate names or statistics.
-- IMPORTANT: Write a comprehensive article of at least 350–600 words when enough source text exists. Make it detailed and informative.
-- Create a short SEO-friendly excerpt (1–2 sentences, max 150 characters) that summarizes the article.
-- Final line MUST be exactly:
-
-Source: ${sourceName}
-
-NO LINKS, no HTML except markdown headings, no formatting.
-
-Original Title: ${title}
-
-Original Body: ${body.substring(0, 2000)}
-
-Return ONLY valid JSON with this exact structure:
-{
-  "new_title": "...",
-  "new_slug": "...",
-  "new_content": "...",
-  "new_excerpt": "...",
-  "source_name": "${sourceName}"
-}`
-
   try {
-    const openai = getOpenAIClient()
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a professional news editor who rewrites articles in clear, engaging English. Always return valid JSON only.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    })
-
-    const content = completion.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('No response from OpenAI')
+    // Use the new editorial article generator
+    const source: AiArticleSource = {
+      title,
+      body,
+      sourceName,
+      categorySlug: categorySlug || null,
     }
 
-    // Parse JSON response
-    const jsonMatch = content.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      throw new Error('Invalid JSON response from OpenAI')
-    }
+    const result = await generateEditorialArticle(source)
 
-    const result: AIRewriteResult = JSON.parse(jsonMatch[0])
-    
-    // Validate response
-    if (!result.new_title || !result.new_slug || !result.new_content) {
-      throw new Error('Incomplete AI response')
+    // Convert to AIRewriteResult format for backward compatibility
+    return {
+      new_title: result.title,
+      new_slug: result.slug,
+      new_content: result.body,
+      new_excerpt: result.excerpt,
+      source_name: result.source_name,
     }
-
-    return result
   } catch (error) {
-    // Re-throw error so it can be caught and logged in the main loop
-    throw error
+    // If AI fails, try fallback
+    console.warn('[REWRITE] AI generation failed, using fallback:', error)
+    try {
+      const source: AiArticleSource = {
+        title,
+        body,
+        sourceName,
+        categorySlug: categorySlug || null,
+      }
+      const fallback = generateFallbackArticle(source)
+      return {
+        new_title: fallback.title,
+        new_slug: fallback.slug,
+        new_content: fallback.body,
+        new_excerpt: fallback.excerpt,
+        source_name: fallback.source_name,
+      }
+    } catch (fallbackError) {
+      // Re-throw original error if fallback also fails
+      throw error
+    }
   }
 }
 
@@ -519,13 +484,17 @@ export async function GET(request: NextRequest) {
         // Log before calling OpenAI
         console.log('[DEBUG] REWRITE START:', article.title)
 
-        // Rewrite article with AI
+        // Determine initial category for better article generation context
+        const initialCategorySlug = getCategorySlugFromArticle(article)
+
+        // Rewrite article with AI (using new editorial generator)
         let rewritten: AIRewriteResult | null = null
         try {
           rewritten = await rewriteArticleWithAI(
             article.title,
             article.body,
-            sourceName
+            sourceName,
+            initialCategorySlug
           )
         } catch (err) {
           console.error('[AI ERROR] rewrite failed:', err)
