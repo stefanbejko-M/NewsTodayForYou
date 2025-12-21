@@ -10,7 +10,8 @@
     "lint": "next lint",
     "ingest:local": "tsx supabase/functions/ingest/index.ts",
     "sitemap": "next-sitemap",
-    "sitemap:generate": "tsx scripts/generate-sitemaps.ts"
+    "sitemap:generate": "tsx scripts/generate-sitemaps.ts",
+    "migrate:verify": "tsx scripts/verify-migrations.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

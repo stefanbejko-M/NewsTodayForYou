@@ -133,12 +133,58 @@ async function getCategories() {
     })
 }
 
+async function getAuthors() {
+  const supabase = await getSupabaseClient()
+  if (!supabase) return []
+
+  // Fetch all authors with slugs
+  const { data: authors, error: authorsError } = await supabase
+    .from('author')
+    .select('id, slug, updated_at, created_at')
+    .not('slug', 'is', null)
+
+  if (authorsError || !authors) {
+    console.error('[sitemap] Failed to fetch authors', authorsError)
+    return []
+  }
+
+  // For each author, check if they have at least one published post
+  const authorsWithPosts: Array<{ slug: string; updated_at: string | null; created_at: string | null }> = []
+  
+  for (const author of authors) {
+    if (!author.slug) continue
+    
+    const { data: posts, error: postsError } = await supabase
+      .from('post')
+      .select('id')
+      .eq('author_id', author.id)
+      .eq('is_published', true)
+      .limit(1)
+    
+    if (!postsError && posts && posts.length > 0) {
+      authorsWithPosts.push({
+        slug: author.slug,
+        updated_at: (author as any).updated_at,
+        created_at: (author as any).created_at,
+      })
+    }
+  }
+
+  return authorsWithPosts.map((author) => ({
+    loc: `${siteUrl}/author/${author.slug}`,
+    changefreq: 'weekly',
+    priority: 0.6,
+    lastmod: toIsoDate(author.updated_at ?? author.created_at),
+  }))
+}
+
 function getStaticPages(): UrlEntry[] {
   const nowIso = new Date().toISOString()
   const paths = [
     '/',
     '/about',
     '/contact',
+    '/editorial-policy',
     '/privacy',
     '/terms',
     '/cookies',
@@ -163,15 +209,22 @@ async function writeFile(filename: string, contents: string) {
 }
 
 async function main() {
-  const [posts, categories] = await Promise.all([getPosts(), getCategories()])
+  const [posts, categories, authors] = await Promise.all([
+    getPosts(),
+    getCategories(),
+    getAuthors(),
+  ])
   const pages = getStaticPages()
 
   await fs.mkdir(publicDir, { recursive: true })
 
+  // Combine authors with static pages for page-sitemap
+  const allPages = [...pages, ...authors]
+
   await Promise.all([
     writeFile('post-sitemap.xml', wrapUrlset(posts)),
     writeFile('category-sitemap.xml', wrapUrlset(categories)),
-    writeFile('page-sitemap.xml', wrapUrlset(pages)),
+    writeFile('page-sitemap.xml', wrapUrlset(allPages)),
   ])
 
   const sitemapList = [

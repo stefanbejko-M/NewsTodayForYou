@@ -8,6 +8,15 @@ import { Breadcrumbs } from '@/components/Breadcrumbs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+type Author = {
+  id: number
+  slug: string
+  name: string
+  bio: string | null
+  role: string | null
+  avatar_url: string | null
+}
+
 type Post = {
   id: number
   title: string
@@ -15,12 +24,15 @@ type Post = {
   body: string
   excerpt?: string
   created_at: string
+  published_at?: string | null
   source_name: string | null
   views?: number | null
   image_url?: string | null
   category_id?: number | null
+  author_id?: number | null
   // Supabase nested relation may return object or array; use runtime guard
   category?: any
+  author?: Author | Author[] | null
 }
 
 type RelatedPost = {
@@ -105,7 +117,7 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
 
     const { data, error } = await client
       .from('post')
-      .select('*, category:category_id(*)')
+      .select('*, category:category_id(*), author:author_id(*)')
       .eq('slug', slug)
       .eq('is_published', true)
       .maybeSingle()
@@ -144,11 +156,12 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
     const bodyContent = post.body || ''
     const formattedBody = `<p>${formatContent(bodyContent)}</p>`
     const cat = Array.isArray((post as any).category) ? (post as any).category[0] : (post as any).category
+    const author = Array.isArray((post as any).author) ? (post as any).author[0] : (post as any).author
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://newstoday4u.com'
     const articleUrl = `${siteUrl}/news/${post.slug}`
-    const publishedDate = post.created_at || new Date().toISOString()
-    const modifiedDate = (post as any).updated_at || post.created_at || new Date().toISOString()
+    const publishedDate = post.published_at || post.created_at || new Date().toISOString()
+    const modifiedDate = (post as any).updated_at || post.published_at || post.created_at || new Date().toISOString()
 
     // Helper: strip markdown for description
     const stripMarkdown = (text: string | null | undefined): string => {
@@ -173,7 +186,11 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
       headline: (post.title || 'News article').slice(0, 110), // Max ~110 chars for headline
       datePublished: publishedDate,
       dateModified: modifiedDate,
-      author: {
+      author: author && typeof author === 'object' && 'name' in author ? {
+        '@type': 'Person',
+        name: author.name,
+        url: author.slug ? `${siteUrl}/author/${author.slug}` : undefined,
+      } : {
         '@type': 'Organization',
         name: 'News Today For You',
       },
@@ -210,6 +227,25 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
     } else if (cat && cat?.slug) {
       // Fallback to slug if name not available
       newsArticleSchema.articleSection = cat.slug
+    }
+
+    // Add separate Person schema for author if available
+    let personSchema: any = null
+    if (author && typeof author === 'object' && 'name' in author) {
+      personSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'Person',
+        name: author.name,
+      }
+      if (author.slug) {
+        personSchema.url = `${siteUrl}/author/${author.slug}`
+      }
+      if (author.bio) {
+        personSchema.description = author.bio
+      }
+      if (author.role) {
+        personSchema.jobTitle = author.role
+      }
     }
 
     // Fetch related posts from the same category
@@ -275,7 +311,17 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
             </div>
           ) : null}
           <div style={{ color: '#6b7280', fontSize: '14px', marginBottom: '12px' }}>
-            <span>By NewsTodayForYou Staff</span>
+            <span>By </span>
+            {author && typeof author === 'object' && 'slug' in author && 'name' in author ? (
+              <Link href={`/author/${author.slug}`} style={{ color: '#1d4ed8', textDecoration: 'none' }}>
+                {author.name}
+              </Link>
+            ) : (
+              <span>NewsTodayForYou Staff</span>
+            )}
+            {author && typeof author === 'object' && 'role' in author && author.role && (
+              <span style={{ marginLeft: '8px', color: '#9ca3af' }}>— {author.role}</span>
+            )}
           </div>
           {post.image_url ? (
             <img 
@@ -285,7 +331,7 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
             />
           ) : null}
           <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '32px' }}>
-            <em>{new Date(post.created_at).toLocaleDateString('en-US', { 
+            <em>{new Date(post.published_at || post.created_at).toLocaleDateString('en-US', { 
               year: 'numeric', 
               month: 'long', 
               day: 'numeric' 
@@ -295,13 +341,47 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
             )}
           </p>
           <div dangerouslySetInnerHTML={{ __html: formattedBody }} />
-          <div className="author-box">
-            <img src="/logo-nt.svg" alt="Author" className="author-avatar" />
-            <div>
-              <strong>NewsTodayForYou Editorial Team</strong>
-              <p>Our editorial team curates and refreshes news every few hours using trusted global sources.</p>
+          {author && typeof author === 'object' && 'name' in author ? (
+            <div className="author-box">
+              {author.avatar_url ? (
+                <img src={author.avatar_url} alt={author.name} className="author-avatar" />
+              ) : (
+                <img src="/logo-nt.svg" alt={author.name} className="author-avatar" />
+              )}
+              <div>
+                <strong>
+                  {author.slug ? (
+                    <Link href={`/author/${author.slug}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {author.name}
+                    </Link>
+                  ) : (
+                    author.name
+                  )}
+                </strong>
+                {author.role && <p style={{ margin: '4px 0', color: '#6b7280', fontSize: '14px' }}>{author.role}</p>}
+                {author.bio ? (
+                  <p>{author.bio}</p>
+                ) : (
+                  <p>Our editorial team curates and refreshes news every few hours using trusted global sources.</p>
+                )}
+                {author.slug && (
+                  <p style={{ marginTop: '8px' }}>
+                    <Link href={`/author/${author.slug}`} style={{ color: '#1d4ed8', textDecoration: 'none', fontSize: '14px' }}>
+                      View all articles by {author.name} →
+                    </Link>
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="author-box">
+              <img src="/logo-nt.svg" alt="Author" className="author-avatar" />
+              <div>
+                <strong>NewsTodayForYou Editorial Team</strong>
+                <p>Our editorial team curates and refreshes news every few hours using trusted global sources.</p>
+              </div>
+            </div>
+          )}
           <div style={{ marginTop: 48, marginBottom: 32 }}>
             <div id="ad-in-1" style={{ minHeight: '250px', padding: '16px', border: '1px solid var(--border)', borderRadius: '12px' }} />
           </div>
@@ -335,6 +415,12 @@ export default async function NewsDetail({ params }: { params: Promise<{ slug: s
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(newsArticleSchema) }}
         />
+        {personSchema && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(personSchema) }}
+          />
+        )}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbListSchema) }}
